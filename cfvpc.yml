@@ -1,10 +1,19 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Assignment 3 dev Test
+Description: Cloud Formation VPC
+Parameters:
+  VPCCidrBlock:
+    Description: "The CIDR Block for VPC"
+    Type: String
+    Default: "10.0.0.0/16"
 Resources:
-  myVPC:
+  VPC:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: 10.0.0.0/16
+      CidrBlock: 
+        Ref: VPCCidrBlock
       EnableDnsSupport: 'true'
       EnableDnsHostnames: 'true'
       InstanceTenancy: 'default'
+      Tags:
+        - Key: Name
+          Value: Stack-VPC
