@@ -85,7 +85,26 @@ Resources:
             - ''
             - - !Ref AWS::StackName
               - '-az3'
-          
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - '-InternetGateway'
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    DependsOn:
+      - VPC
+      - InternetGateway
+    Properties:
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: InternetGateway
 Outputs:
   VpcId:
     Description: VPC ID
