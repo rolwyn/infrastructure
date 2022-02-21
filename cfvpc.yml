@@ -5,15 +5,89 @@ Parameters:
     Description: "The CIDR Block for VPC"
     Type: String
     Default: "10.0.0.0/16"
+  SubnetCidrBlock1:
+    Type: String
+    Default: "10.1.1.0/24"
+  SubnetCidrBlock2:
+    Type: String
+    Default: "10.1.2.0/24"
+  SubnetCidrBlock3:
+    Type: String
+    Default: "10.1.3.0/24"
+  AZone1:
+    Type: String
+    Default: "a"
+  AZone2:
+    Type: String
+    Default: "b"
+  AZone3:
+    Type: String
+    Default: "c"
 Resources:
   VPC:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: 
-        Ref: VPCCidrBlock
+      CidrBlock: !Ref VPCCidrBlock
       EnableDnsSupport: 'true'
       EnableDnsHostnames: 'true'
       InstanceTenancy: 'default'
       Tags:
         - Key: Name
-          Value: Stack-VPC
+          Value: !Ref AWS::StackName
+  subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref SubnetCidrBlock1
+      AvailabilityZone:
+        !Join
+          - ''
+          - - 'us-east-1'
+            - !Ref AZone1
+      Tags:
+      - Key: Name
+        Value:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - '-az1'
+  subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref SubnetCidrBlock2
+      AvailabilityZone:
+        !Join
+          - ''
+          - - 'us-east-1'
+            - !Ref AZone2
+      Tags:
+      - Key: Name
+        Value:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - '-az2'
+  subnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref SubnetCidrBlock3
+      AvailabilityZone:
+        !Join
+          - ''
+          - - 'us-east-1'
+            - !Ref AZone3
+      Tags:
+      - Key: Name
+        Value:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - '-az3'
+          
+Outputs:
+  VpcId:
+    Description: VPC ID
+    Value:
+      Ref: VPC
