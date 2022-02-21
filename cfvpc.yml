@@ -42,7 +42,7 @@ Resources:
       AvailabilityZone:
         !Join
           - ''
-          - - 'us-east-1'
+          - - !Ref AWS::Region
             - !Ref AZone1
       Tags:
       - Key: Name
@@ -59,7 +59,7 @@ Resources:
       AvailabilityZone:
         !Join
           - ''
-          - - 'us-east-1'
+          - - !Ref AWS::Region
             - !Ref AZone2
       Tags:
       - Key: Name
@@ -76,7 +76,7 @@ Resources:
       AvailabilityZone:
         !Join
           - ''
-          - - 'us-east-1'
+          - - !Ref AWS::Region
             - !Ref AZone3
       Tags:
       - Key: Name
@@ -89,5 +89,13 @@ Resources:
 Outputs:
   VpcId:
     Description: VPC ID
-    Value:
-      Ref: VPC
+    Value: !Ref VPC
+  SubnetId1:
+    Description: Subnet ID 1
+    Value: !Ref subnet1
+  SubnetId2:
+    Description: Subnet ID 2
+    Value: !Ref subnet2
+  SubnetId3:
+    Description: Subnet ID 3
+    Value: !Ref subnet3
