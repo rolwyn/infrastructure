@@ -95,7 +95,7 @@ Resources:
             - ''
             - - !Ref AWS::StackName
               - '-InternetGateway'
-  AttachInternetGateway:
+  InternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     DependsOn:
       - VPC
@@ -105,6 +105,51 @@ Resources:
         Ref: VPC
       InternetGatewayId:
         Ref: InternetGateway
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - '-PublicRouteTable'
+  SubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - subnet1
+      - PublicRouteTable
+      - InternetGatewayAttachment
+    Properties:
+      SubnetId:
+        Ref: subnet1
+      RouteTableId:
+        Ref: PublicRouteTable
+  SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - subnet2
+      - PublicRouteTable
+      - InternetGatewayAttachment
+    Properties:
+      SubnetId:
+        Ref: subnet2
+      RouteTableId:
+        Ref: PublicRouteTable
+  SubnetRouteTableAssociation3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - subnet3
+      - PublicRouteTable
+      - InternetGatewayAttachment
+    Properties:
+      SubnetId:
+        Ref: subnet3
+      RouteTableId:
+        Ref: PublicRouteTable
 Outputs:
   VpcId:
     Description: VPC ID
