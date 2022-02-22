@@ -14,6 +14,9 @@ Parameters:
   SubnetCidrBlock3:
     Type: String
     Default: "10.1.3.0/24"
+  DestinationCidrBlock:
+    Type: String
+    Default: "0.0.0.0/0"
   AZone1:
     Type: String
     Default: "a"
@@ -150,6 +153,17 @@ Resources:
         Ref: subnet3
       RouteTableId:
         Ref: PublicRouteTable
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn:
+      - PublicRouteTable
+      - InternetGateway
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable
+      DestinationCidrBlock: !Ref DestinationCidrBlock
+      GatewayId:
+        Ref: InternetGateway
 Outputs:
   VpcId:
     Description: VPC ID
