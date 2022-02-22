@@ -1,3 +1,15 @@
+#logs
+logs
+*.log
+crash.log
+
+# Yarn Integrity file
+.yarn-integrity
+
+# CI cache
+.ci
+.local.env
+
 # Store files
 .DS_Store
 .idea/
