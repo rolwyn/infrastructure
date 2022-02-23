@@ -1,0 +1,179 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Cloud Formation VPC
+Parameters:
+  VPCCidrBlock:
+    Description: "The CIDR Block for VPC"
+    Type: String
+    Default: "10.0.0.0/16"
+  SubnetCidrBlock1:
+    Type: String
+    Default: "10.1.1.0/24"
+  SubnetCidrBlock2:
+    Type: String
+    Default: "10.1.2.0/24"
+  SubnetCidrBlock3:
+    Type: String
+    Default: "10.1.3.0/24"
+  DestinationCidrBlock:
+    Type: String
+    Default: "0.0.0.0/0"
+  AZone1:
+    Type: String
+    Default: "a"
+  AZone2:
+    Type: String
+    Default: "b"
+  AZone3:
+    Type: String
+    Default: "c"
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCidrBlock
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      InstanceTenancy: 'default'
+      Tags:
+        - Key: Name
+          Value: !Ref AWS::StackName
+  subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref SubnetCidrBlock1
+      AvailabilityZone:
+        !Join
+          - ''
+          - - !Ref AWS::Region
+            - !Ref AZone1
+      Tags:
+      - Key: Name
+        Value:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - '-az1'
+  subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref SubnetCidrBlock2
+      AvailabilityZone:
+        !Join
+          - ''
+          - - !Ref AWS::Region
+            - !Ref AZone2
+      Tags:
+      - Key: Name
+        Value:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - '-az2'
+  subnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref SubnetCidrBlock3
+      AvailabilityZone:
+        !Join
+          - ''
+          - - !Ref AWS::Region
+            - !Ref AZone3
+      Tags:
+      - Key: Name
+        Value:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - '-az3'
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - '-InternetGateway'
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    DependsOn:
+      - VPC
+      - InternetGateway
+    Properties:
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: InternetGateway
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - '-PublicRouteTable'
+  SubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - subnet1
+      - PublicRouteTable
+      - InternetGatewayAttachment
+    Properties:
+      SubnetId:
+        Ref: subnet1
+      RouteTableId:
+        Ref: PublicRouteTable
+  SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - subnet2
+      - PublicRouteTable
+      - InternetGatewayAttachment
+    Properties:
+      SubnetId:
+        Ref: subnet2
+      RouteTableId:
+        Ref: PublicRouteTable
+  SubnetRouteTableAssociation3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - subnet3
+      - PublicRouteTable
+      - InternetGatewayAttachment
+    Properties:
+      SubnetId:
+        Ref: subnet3
+      RouteTableId:
+        Ref: PublicRouteTable
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn:
+      - PublicRouteTable
+      - InternetGateway
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable
+      DestinationCidrBlock: !Ref DestinationCidrBlock
+      GatewayId:
+        Ref: InternetGateway
+Outputs:
+  VpcId:
+    Description: VPC ID
+    Value: !Ref VPC
+  SubnetId1:
+    Description: Subnet ID 1
+    Value: !Ref subnet1
+  SubnetId2:
+    Description: Subnet ID 2
+    Value: !Ref subnet2
+  SubnetId3:
+    Description: Subnet ID 3
+    Value: !Ref subnet3
