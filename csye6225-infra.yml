@@ -193,6 +193,20 @@ Resources:
       Tags:
       - Key: Name
         Value: !Sub '${AWS::StackName}-application-security-group'
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: "ami-033b95fb8079dc481"
+      InstanceType: "t2.micro"
+      SubnetId: !Ref subnet1
+      SecurityGroupIds: [!Ref ApplicationSecurityGroup]
+      DisableApiTermination: "false"
+      BlockDeviceMappings:
+      - DeviceName: "/dev/xvda"
+        Ebs: 
+          VolumeType: "gp2"
+          DeleteOnTermination: "true"
+          VolumeSize: "20"
 Outputs:
   VpcId:
     Description: VPC ID
