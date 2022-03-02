@@ -42,6 +42,7 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       CidrBlock: !Ref SubnetCidrBlock1
+      MapPublicIpOnLaunch: true
       AvailabilityZone:
         !Join
           - ''
@@ -175,17 +176,14 @@ Resources:
           FromPort: 22
           ToPort: 22
           CidrIp: 0.0.0.0/0
-      SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
-      SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
-      SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 3000
           ToPort: 3000
@@ -196,7 +194,7 @@ Resources:
   EC2Instance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: "ami-033b95fb8079dc481"
+      ImageId: "ami-0647c9f7063294dd3"
       InstanceType: "t2.micro"
       SubnetId: !Ref subnet1
       SecurityGroupIds: [!Ref ApplicationSecurityGroup]
