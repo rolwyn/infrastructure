@@ -17,15 +17,18 @@ Parameters:
   DestinationCidrBlock:
     Type: String
     Default: "0.0.0.0/0"
-  AZone1:
+  AmiId:
     Type: String
-    Default: "a"
-  AZone2:
-    Type: String
-    Default: "b"
-  AZone3:
-    Type: String
-    Default: "c"
+    Default: "ami-033b95fb8079dc481"
+  # AZone1:
+  #   Type: String
+  #   Default: "a"
+  # AZone2:
+  #   Type: String
+  #   Default: "b"
+  # AZone3:
+  #   Type: String
+  #   Default: "c"
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -42,11 +45,17 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       CidrBlock: !Ref SubnetCidrBlock1
-      AvailabilityZone:
-        !Join
-          - ''
-          - - !Ref AWS::Region
-            - !Ref AZone1
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: 
+        !Select 
+          - 0
+          - !GetAZs     
+            Ref: 'AWS::Region'
+      # AvailabilityZone:
+      #   !Join
+      #     - ''
+      #     - - !Ref AWS::Region
+      #       - !Ref AZone1
       Tags:
       - Key: Name
         Value:
@@ -59,11 +68,17 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       CidrBlock: !Ref SubnetCidrBlock2
-      AvailabilityZone:
-        !Join
-          - ''
-          - - !Ref AWS::Region
-            - !Ref AZone2
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: 
+        !Select 
+          - 1
+          - !GetAZs     
+            Ref: 'AWS::Region'
+      # AvailabilityZone:
+      #   !Join
+      #     - ''
+      #     - - !Ref AWS::Region
+      #       - !Ref AZone2
       Tags:
       - Key: Name
         Value:
@@ -76,11 +91,17 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       CidrBlock: !Ref SubnetCidrBlock3
-      AvailabilityZone:
-        !Join
-          - ''
-          - - !Ref AWS::Region
-            - !Ref AZone3
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: 
+        !Select 
+          - 2
+          - !GetAZs     
+            Ref: 'AWS::Region'
+      # AvailabilityZone:
+      #   !Join
+      #     - ''
+      #     - - !Ref AWS::Region
+      #       - !Ref AZone3
       Tags:
       - Key: Name
         Value:
@@ -164,6 +185,49 @@ Resources:
       DestinationCidrBlock: !Ref DestinationCidrBlock
       GatewayId:
         Ref: InternetGateway
+  ApplicationSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Web application security group
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '3200'
+          ToPort: '3200'
+          CidrIp: 0.0.0.0/0
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-application-security-group'
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: "t2.micro"
+      SubnetId: !Ref subnet1
+      SecurityGroupIds: [!Ref ApplicationSecurityGroup]
+      DisableApiTermination: "false"
+      BlockDeviceMappings:
+      - DeviceName: "/dev/xvda"
+        Ebs: 
+          VolumeType: "gp2"
+          DeleteOnTermination: "true"
+          VolumeSize: "20"
+      Tags:
+      - Key: Name
+        Value: !Sub 'EC2Instance-${AWS::StackName}'
 Outputs:
   VpcId:
     Description: VPC ID
