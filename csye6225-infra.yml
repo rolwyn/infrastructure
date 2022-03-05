@@ -314,15 +314,29 @@ Resources:
         Ref: PrivateSubnet3
       RouteTableId:
         Ref: PrivateRouteTable
-  PrivateRoute:
-    Type: AWS::EC2::Route
-    DependsOn:
-      - PrivateRouteTable
+  # PrivateRoute:
+  #   Type: AWS::EC2::Route
+  #   DependsOn:
+  #     - PrivateRouteTable
+  #   Properties:
+  #     RouteTableId:
+  #       Ref: PrivateRouteTable
+  #     DestinationCidrBlock: !Ref PrivateSubCidrBlock1
+  #     GatewayId: "10.0.0.0/16
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
     Properties:
-      RouteTableId:
-        Ref: PrivateRouteTable
-      DestinationCidrBlock: !Ref PrivateSubCidrBlock1
-      GatewayId: "10.0.0.0/16"
+      GroupDescription: Database security group
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '5432'
+          ToPort: '5432'
+          SourceSecurityGroupId: !Ref ApplicationSecurityGroup
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-database-security-group'
 Outputs:
   VpcId:
     Description: VPC ID
