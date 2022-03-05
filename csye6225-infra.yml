@@ -20,6 +20,15 @@ Parameters:
   AmiId:
     Type: String
     Default: "ami-033b95fb8079dc481"
+  PrivateSubCidrBlock1:
+    Type: String
+    Default: "10.1.4.0/24"
+  PrivateSubCidrBlock2:
+    Type: String
+    Default: "10.1.5.0/24"
+  PrivateSubCidrBlock3:
+    Type: String
+    Default: "10.1.6.0/24"
   # AZone1:
   #   Type: String
   #   Default: "a"
@@ -228,6 +237,92 @@ Resources:
       Tags:
       - Key: Name
         Value: !Sub 'EC2Instance-${AWS::StackName}'
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubCidrBlock1
+      AvailabilityZone:
+        !Select 
+          - 0
+          - !GetAZs
+            Ref: 'AWS::Region'
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-privatesubnet1'
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubCidrBlock2
+      AvailabilityZone:
+        !Select
+          - 1
+          - !GetAZs
+            Ref: 'AWS::Region'
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-privatesubnet2'
+  PrivateSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubCidrBlock3
+      AvailabilityZone:
+        !Select
+          - 2
+          - !GetAZs
+            Ref: 'AWS::Region'
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-privatesubnet3'
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-PrivateRouteTable'
+  PrivateSubnet1RTAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - PrivateSubnet1
+      - PrivateRouteTable
+    Properties:
+      SubnetId:
+        Ref: PrivateSubnet1
+      RouteTableId:
+        Ref: PrivateRouteTable
+  PrivateSubnet2RTAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - PrivateSubnet2
+      - PrivateRouteTable
+    Properties:
+      SubnetId:
+        Ref: PrivateSubnet2
+      RouteTableId:
+        Ref: PrivateRouteTable
+  PrivateSubnet3RTAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - PrivateSubnet3
+      - PrivateRouteTable
+    Properties:
+      SubnetId:
+        Ref: PrivateSubnet3
+      RouteTableId:
+        Ref: PrivateRouteTable
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    DependsOn:
+      - PrivateRouteTable
+    Properties:
+      RouteTableId:
+        Ref: PrivateRouteTable
+      DestinationCidrBlock: !Ref PrivateSubCidrBlock1
+      GatewayId: "10.0.0.0/16"
 Outputs:
   VpcId:
     Description: VPC ID
