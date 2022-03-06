@@ -23,3 +23,8 @@ aws cloudformation delete-stack --stack-name appstack --profile=demo --region us
 # Set Profile
 export AWS_PROFILE=demo
 export AWS_REGION=us-east-1
+
+
+S3 bucket commands
+aws s3 rm s3://appstack1-s3buckeencrypted-1bzshi4hhpled --recursive --profile=dev
+aws s3api delete-bucket --bucket appstack1-s3buckeencrypted-1bzshi4hhpled --region us-east-1 --profile=dev

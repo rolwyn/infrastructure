@@ -321,8 +321,8 @@ Resources:
   #   Properties:
   #     RouteTableId:
   #       Ref: PrivateRouteTable
-  #     DestinationCidrBlock: !Ref PrivateSubCidrBlock1
-  #     GatewayId: "10.0.0.0/16
+  #     DestinationCidrBlock: "10.0.0.0/16"
+  #     InstanceId: !Ref EC2Instance
   DatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -346,14 +346,24 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: 'AES256'
-      DeletionPolicy: Delete
       LifecycleConfiguration:
         Rules:
           - Status: Enabled
-            ExpirationInDays: 365
+            ExpirationInDays: 90
             Transitions:
             - TransitionInDays: 30
               StorageClass: STANDARD_IA
+  RDSParameterGroup:
+    Type: 'AWS::RDS::DBParameterGroup'
+    Properties:
+      Description: Postgres parameter group
+      Family: postgres13
+      Parameters:
+        log_connections: 1
+        log_disconnections: 1
+        log_min_duration_statement: 4000
+        auto_explain.log_verbose: 1
+        rds.log_retention_period: 4320
 Outputs:
   VpcId:
     Description: VPC ID
