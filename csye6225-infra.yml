@@ -29,6 +29,24 @@ Parameters:
   PrivateSubCidrBlock3:
     Type: String
     Default: "10.1.6.0/24"
+  DBEngineVersion:
+    Type: String
+    Default: 13.4
+  DBInstanceIdentifier:
+    Type: String
+    Default: "csye6225"
+  DBInstanceClass:
+    Type: String
+    Default: "db.t3.micro"
+  MasterDBUsername:
+    Type: String
+    Default: "csye6225"
+  MasterDBPassword:
+    Type: String
+    Default: "dbs22csye6225"
+  DBName:
+    Type: String
+    Default: "csye6225"
   # AZone1:
   #   Type: String
   #   Default: "a"
@@ -364,6 +382,49 @@ Resources:
         log_min_duration_statement: 4000
         auto_explain.log_verbose: 1
         rds.log_retention_period: 4320
+  RDSDBInstance:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      Engine: postgres
+      EngineVersion: !Ref DBEngineVersion
+      DBInstanceClass: !Ref DBInstanceClass
+      MultiAZ: false
+      DBInstanceIdentifier: !Ref DBInstanceIdentifier
+      MasterUsername: !Ref MasterDBUsername
+      MasterUserPassword: !Ref MasterDBPassword
+      DBSubnetGroupName: !Ref RDSDBSubnetGroup
+      PubliclyAccessible: false
+      DBName: !Ref DBName
+      AllocatedStorage: 20
+      StorageType: "gp2"
+      DBParameterGroupName: !Ref RDSParameterGroup
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+  RDSDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: DB subnet group for DB Instance
+      SubnetIds: 
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+  WebAppS3:
+    Type: AWS::IAM::Policy
+      Properties: 
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - "s3:GetObject"
+                - "s3:PutObject"
+                - "s3:DeleteObject"
+              Resource:
+                - !Ref S3BuckeEncrypted.Arn
+                - !Sub '${S3BuckeEncrypted.Arn}/*'
+        PolicyName: "WebAppS3"
+        Roles:
+          - !Ref EC2-CSYE6225
 Outputs:
   VpcId:
     Description: VPC ID
