@@ -372,7 +372,7 @@ Resources:
             - TransitionInDays: 30
               StorageClass: STANDARD_IA
   RDSParameterGroup:
-    Type: 'AWS::RDS::DBParameterGroup'
+    Type: AWS::RDS::DBParameterGroup
     Properties:
       Description: Postgres parameter group
       Family: postgres13
@@ -383,7 +383,7 @@ Resources:
         auto_explain.log_verbose: 1
         rds.log_retention_period: 4320
   RDSDBInstance:
-    Type: 'AWS::RDS::DBInstance'
+    Type: AWS::RDS::DBInstance
     Properties:
       Engine: postgres
       EngineVersion: !Ref DBEngineVersion
@@ -408,23 +408,44 @@ Resources:
         - !Ref PrivateSubnet1
         - !Ref PrivateSubnet2
         - !Ref PrivateSubnet3
-  WebAppS3:
+  WebAppS3EC2IAMPolicy:
     Type: AWS::IAM::Policy
-      Properties: 
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            - Effect: Allow
-              Action:
-                - "s3:GetObject"
-                - "s3:PutObject"
-                - "s3:DeleteObject"
-              Resource:
-                - !Ref S3BuckeEncrypted.Arn
-                - !Sub '${S3BuckeEncrypted.Arn}/*'
-        PolicyName: "WebAppS3"
-        Roles:
-          - !Ref EC2-CSYE6225
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "s3:GetObject"
+              - "s3:PutObject"
+              - "s3:DeleteObject"
+            Resource:
+              - !GetAtt S3BuckeEncrypted.Arn
+              - !Sub '${S3BuckeEncrypted.Arn}/*'
+      PolicyName: "WebAppS3"
+      Roles:
+        - !Ref WebAppS3EC2IAMRole
+  WebAppS3EC2IAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      RoleName: EC2-CSYE6225
+  WebAppEC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      InstanceProfileName: WebAppEC2InstanceProfile
+      Roles:
+        - !Ref WebAppS3EC2IAMRole
 Outputs:
   VpcId:
     Description: VPC ID
