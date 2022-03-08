@@ -23,7 +23,8 @@ aws cloudformation delete-stack --stack-name appstack --profile=demo --region us
 # Set Profile
 export AWS_PROFILE=demo
 export AWS_REGION=us-east-1
-
+# Stack with rds and s3
+aws cloudformation create-stack --stack-name appstack --template-body file://csye6225-infra.yml --parameters ParameterKey=VPCCidrBlock,ParameterValue="10.1.0.0/16" ParameterKey=SubnetCidrBlock1,ParameterValue="10.1.1.0/24" ParameterKey=SubnetCidrBlock2,ParameterValue="10.1.2.0/24" ParameterKey=SubnetCidrBlock3,ParameterValue="10.1.3.0/24" ParameterKey=PrivateSubCidrBlock1,ParameterValue="10.1.4.0/24" ParameterKey=PrivateSubCidrBlock2,ParameterValue="10.1.5.0/24" ParameterKey=PrivateSubCidrBlock3,ParameterValue="10.1.6.0/24" ParameterKey=S3BucketName,ParameterValue="asdafglorious.dev.rolwynquadras.me" --region us-east-1 --profile=dev  --capabilities CAPABILITY_NAMED_IAM
 
 S3 bucket commands
 aws s3 rm s3://appstack1-s3buckeencrypted-1bzshi4hhpled --recursive --profile=dev
