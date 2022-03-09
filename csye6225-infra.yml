@@ -256,11 +256,24 @@ Resources:
           DeleteOnTermination: "true"
           VolumeSize: "20"
       UserData:
-        Fn::Base64: 
+        Fn::Base64:
           !Sub |
             #!/bin/bash
-            yum update -y
-            cd ~/
+            sudo yum update -y
+            echo "reached here"
+            sudo touch /etc/profile.d/webenv.sh
+            sudo chmod 777 /etc/profile.d/webenv.sh
+            sudo cat > /etc/profile.d/webenv.sh << 'EOF'
+              export DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
+              export AWS_BUCKET_NAME=${S3BuckeEncrypted}
+              export AWS_BUCKET_REGION=${AWS::Region}
+              export DB_NAME=${DBName}
+              export DB_PASSWORD=${MasterDBPassword}
+              export DB_USER_NAME=${MasterDBUsername}
+            EOF
+            # sudo echo "export DBPASSWORD=1234567" > /etc/profile.d/webenv.sh
+            # sudo echo "export DBUSER=12" > /etc/profile.d/webenv.sh
+            # cd /home/ec2-user/
       Tags:
       - Key: Name
         Value: !Sub 'EC2Instance-${AWS::StackName}'
@@ -380,6 +393,11 @@ Resources:
             Transitions:
             - TransitionInDays: 30
               StorageClass: STANDARD_IA
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
   RDSParameterGroup:
     Type: AWS::RDS::DBParameterGroup
     Properties:
