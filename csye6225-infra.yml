@@ -277,6 +277,15 @@ Resources:
               export DB_PASSWORD=${MasterDBPassword}
               export DB_USER_NAME=${MasterDBUsername}
             EOF
+            touch /home/ec2-user/webservice/.env
+            cat > /home/ec2-user/webservice/.env << 'EOF'
+              DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
+              AWS_BUCKET_NAME=${S3BucketName}
+              AWS_BUCKET_REGION=${AWS::Region}
+              DB_NAME=${DBName}
+              DB_PASSWORD=${MasterDBPassword}
+              DB_USER_NAME=${MasterDBUsername}
+            EOF
             pm2 reload all --update-env
       Tags:
       - Key: Name
