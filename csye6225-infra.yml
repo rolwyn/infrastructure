@@ -20,6 +20,36 @@ Parameters:
   AmiId:
     Type: String
     Default: "ami-033b95fb8079dc481"
+  PrivateSubCidrBlock1:
+    Type: String
+    Default: "10.1.4.0/24"
+  PrivateSubCidrBlock2:
+    Type: String
+    Default: "10.1.5.0/24"
+  PrivateSubCidrBlock3:
+    Type: String
+    Default: "10.1.6.0/24"
+  DBEngineVersion:
+    Type: String
+    Default: 13.4
+  DBInstanceIdentifier:
+    Type: String
+    Default: "csye6225"
+  DBInstanceClass:
+    Type: String
+    Default: "db.t3.micro"
+  MasterDBUsername:
+    Type: String
+    Default: "csye6225"
+  MasterDBPassword:
+    Type: String
+    Default: "dbs22csye6225"
+  DBName:
+    Type: String
+    Default: "csye6225"
+  S3BucketName:
+    Type: String
+    Default: "asdafglorious.dev.rolwynquadras.me"
   # AZone1:
   #   Type: String
   #   Default: "a"
@@ -191,22 +221,27 @@ Resources:
       GroupDescription: Web application security group
       VpcId:
         Ref: VPC
+      # SecurityGroupEgress:
+      #   - IpProtocol: tcp
+      #     FromPort: 5432
+      #     ToPort: 5432
+      #     CidrIp: 0.0.0.0/0
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: '22'
-          ToPort: '22'
+          FromPort: 22
+          ToPort: 22
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
-          FromPort: '80'
-          ToPort: '80'
+          FromPort: 80
+          ToPort: 80
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
-          FromPort: '443'
-          ToPort: '443'
+          FromPort: 443
+          ToPort: 443
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
-          FromPort: '3200'
-          ToPort: '3200'
+          FromPort: 3800
+          ToPort: 3800
           CidrIp: 0.0.0.0/0
       Tags:
       - Key: Name
@@ -217,17 +252,233 @@ Resources:
       ImageId: !Ref AmiId
       InstanceType: "t2.micro"
       SubnetId: !Ref subnet1
-      SecurityGroupIds: [!Ref ApplicationSecurityGroup]
+      SecurityGroupIds:
+        - !Ref ApplicationSecurityGroup
       DisableApiTermination: "false"
+      IamInstanceProfile: !Ref WebAppEC2InstanceProfile
       BlockDeviceMappings:
       - DeviceName: "/dev/xvda"
         Ebs: 
           VolumeType: "gp2"
           DeleteOnTermination: "true"
           VolumeSize: "20"
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            yum update -y
+            touch /etc/profile.d/webenv.sh
+            chmod 777 /etc/profile.d/webenv.sh
+            cat > /etc/profile.d/webenv.sh << 'EOF'
+              export DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
+              export AWS_BUCKET_NAME=${S3BucketName}
+              export AWS_BUCKET_REGION=${AWS::Region}
+              export DB_NAME=${DBName}
+              export DB_PASSWORD=${MasterDBPassword}
+              export DB_USER_NAME=${MasterDBUsername}
+            EOF
+            pm2 reload all --update-env
       Tags:
       - Key: Name
         Value: !Sub 'EC2Instance-${AWS::StackName}'
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubCidrBlock1
+      AvailabilityZone:
+        !Select 
+          - 0
+          - !GetAZs
+            Ref: 'AWS::Region'
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-privatesubnet1'
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubCidrBlock2
+      AvailabilityZone:
+        !Select
+          - 1
+          - !GetAZs
+            Ref: 'AWS::Region'
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-privatesubnet2'
+  PrivateSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubCidrBlock3
+      AvailabilityZone:
+        !Select
+          - 2
+          - !GetAZs
+            Ref: 'AWS::Region'
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-privatesubnet3'
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-PrivateRouteTable'
+  PrivateSubnet1RTAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - PrivateSubnet1
+      - PrivateRouteTable
+    Properties:
+      SubnetId:
+        Ref: PrivateSubnet1
+      RouteTableId:
+        Ref: PrivateRouteTable
+  PrivateSubnet2RTAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - PrivateSubnet2
+      - PrivateRouteTable
+    Properties:
+      SubnetId:
+        Ref: PrivateSubnet2
+      RouteTableId:
+        Ref: PrivateRouteTable
+  PrivateSubnet3RTAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - PrivateSubnet3
+      - PrivateRouteTable
+    Properties:
+      SubnetId:
+        Ref: PrivateSubnet3
+      RouteTableId:
+        Ref: PrivateRouteTable
+  # PrivateRoute:
+  #   Type: AWS::EC2::Route
+  #   DependsOn:
+  #     - PrivateRouteTable
+  #   Properties:
+  #     RouteTableId:
+  #       Ref: PrivateRouteTable
+  #     DestinationCidrBlock: "10.0.0.0/16"
+  #     InstanceId: !Ref EC2Instance
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Database security group
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref ApplicationSecurityGroup
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-database-security-group'
+  S3BuckeEncrypted:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      AccessControl: Private
+      BucketName: !Ref S3BucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+      LifecycleConfiguration:
+        Rules:
+          - Id: LifeCycleRule
+            Status: Enabled
+            ExpirationInDays: 90
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: STANDARD_IA
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+  RDSParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: Postgres parameter group
+      Family: postgres13
+      Parameters:
+        log_connections: 1
+        # log_disconnections: 1
+        # log_min_duration_statement: 4000
+        # auto_explain.log_verbose: 1
+        # rds.log_retention_period: 4320
+  RDSDBInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
+    Properties:
+      Engine: postgres
+      EngineVersion: !Ref DBEngineVersion
+      DBInstanceClass: !Ref DBInstanceClass
+      MultiAZ: false
+      DBInstanceIdentifier: !Ref DBInstanceIdentifier
+      MasterUsername: !Ref MasterDBUsername
+      MasterUserPassword: !Ref MasterDBPassword
+      DBSubnetGroupName: !Ref RDSDBSubnetGroup
+      PubliclyAccessible: false
+      DBName: !Ref DBName
+      AllocatedStorage: 20
+      StorageType: "gp2"
+      DBParameterGroupName: !Ref RDSParameterGroup
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+  RDSDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: DB subnet group for DB Instance
+      SubnetIds: 
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+  WebAppS3EC2IAMPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "s3:GetObject"
+              - "s3:PutObject"
+              - "s3:DeleteObject"
+            Resource:
+              - !GetAtt S3BuckeEncrypted.Arn
+              - !Sub '${S3BuckeEncrypted.Arn}/*'
+      PolicyName: "WebAppS3"
+      Roles:
+        - !Ref WebAppS3EC2IAMRole
+  WebAppS3EC2IAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      RoleName: EC2-CSYE6225
+  WebAppEC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      InstanceProfileName: WebAppEC2InstanceProfile
+      Roles:
+        - !Ref WebAppS3EC2IAMRole
 Outputs:
   VpcId:
     Description: VPC ID
