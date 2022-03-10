@@ -221,11 +221,11 @@ Resources:
       GroupDescription: Web application security group
       VpcId:
         Ref: VPC
-      SecurityGroupEgress:
-        - IpProtocol: tcp
-          FromPort: 5432
-          ToPort: 5432
-          CidrIp: 0.0.0.0/0
+      # SecurityGroupEgress:
+      #   - IpProtocol: tcp
+      #     FromPort: 5432
+      #     ToPort: 5432
+      #     CidrIp: 0.0.0.0/0
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 22
@@ -252,7 +252,8 @@ Resources:
       ImageId: !Ref AmiId
       InstanceType: "t2.micro"
       SubnetId: !Ref subnet1
-      SecurityGroupIds: [!Ref ApplicationSecurityGroup]
+      SecurityGroupIds:
+        - !Ref ApplicationSecurityGroup
       DisableApiTermination: "false"
       IamInstanceProfile: !Ref WebAppEC2InstanceProfile
       BlockDeviceMappings:
@@ -270,7 +271,7 @@ Resources:
             chmod 777 /etc/profile.d/webenv.sh
             cat > /etc/profile.d/webenv.sh << 'EOF'
               export DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
-              export AWS_BUCKET_NAME=${S3BuckeEncrypted}
+              export AWS_BUCKET_NAME=${S3BucketName}
               export AWS_BUCKET_REGION=${AWS::Region}
               export DB_NAME=${DBName}
               export DB_PASSWORD=${MasterDBPassword}
@@ -388,14 +389,15 @@ Resources:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
-              SSEAlgorithm: 'AES256'
+              SSEAlgorithm: 'aws:kms'
       LifecycleConfiguration:
         Rules:
-          - Status: Enabled
+          - Id: LifeCycleRule
+            Status: Enabled
             ExpirationInDays: 90
             Transitions:
-            - TransitionInDays: 30
-              StorageClass: STANDARD_IA
+              - TransitionInDays: 30
+                StorageClass: STANDARD_IA
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -414,6 +416,7 @@ Resources:
         # rds.log_retention_period: 4320
   RDSDBInstance:
     Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
     Properties:
       Engine: postgres
       EngineVersion: !Ref DBEngineVersion
