@@ -221,22 +221,27 @@ Resources:
       GroupDescription: Web application security group
       VpcId:
         Ref: VPC
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 3800
+          ToPort: 3800
+          CidrIp: 0.0.0.0/0
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: '22'
-          ToPort: '22'
+          FromPort: 22
+          ToPort: 22
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
-          FromPort: '80'
-          ToPort: '80'
+          FromPort: 80
+          ToPort: 80
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
-          FromPort: '443'
-          ToPort: '443'
+          FromPort: 443
+          ToPort: 443
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
-          FromPort: '3200'
-          ToPort: '3200'
+          FromPort: 3800
+          ToPort: 3800
           CidrIp: 0.0.0.0/0
       Tags:
       - Key: Name
@@ -249,6 +254,7 @@ Resources:
       SubnetId: !Ref subnet1
       SecurityGroupIds: [!Ref ApplicationSecurityGroup]
       DisableApiTermination: "false"
+      IamInstanceProfile: !Ref WebAppEC2InstanceProfile
       BlockDeviceMappings:
       - DeviceName: "/dev/xvda"
         Ebs: 
@@ -259,11 +265,10 @@ Resources:
         Fn::Base64:
           !Sub |
             #!/bin/bash
-            sudo yum update -y
-            echo "reached here"
-            sudo touch /etc/profile.d/webenv.sh
-            sudo chmod 777 /etc/profile.d/webenv.sh
-            sudo cat > /etc/profile.d/webenv.sh << 'EOF'
+            yum update -y
+            touch /etc/profile.d/webenv.sh
+            chmod 777 /etc/profile.d/webenv.sh
+            cat > /etc/profile.d/webenv.sh << 'EOF'
               export DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
               export AWS_BUCKET_NAME=${S3BuckeEncrypted}
               export AWS_BUCKET_REGION=${AWS::Region}
@@ -271,9 +276,6 @@ Resources:
               export DB_PASSWORD=${MasterDBPassword}
               export DB_USER_NAME=${MasterDBUsername}
             EOF
-            # sudo echo "export DBPASSWORD=1234567" > /etc/profile.d/webenv.sh
-            # sudo echo "export DBUSER=12" > /etc/profile.d/webenv.sh
-            # cd /home/ec2-user/
       Tags:
       - Key: Name
         Value: !Sub 'EC2Instance-${AWS::StackName}'
@@ -371,8 +373,8 @@ Resources:
         Ref: VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: '5432'
-          ToPort: '5432'
+          FromPort: 5432
+          ToPort: 5432
           SourceSecurityGroupId: !Ref ApplicationSecurityGroup
       Tags:
       - Key: Name
@@ -405,10 +407,10 @@ Resources:
       Family: postgres13
       Parameters:
         log_connections: 1
-        log_disconnections: 1
-        log_min_duration_statement: 4000
-        auto_explain.log_verbose: 1
-        rds.log_retention_period: 4320
+        # log_disconnections: 1
+        # log_min_duration_statement: 4000
+        # auto_explain.log_verbose: 1
+        # rds.log_retention_period: 4320
   RDSDBInstance:
     Type: AWS::RDS::DBInstance
     Properties:
