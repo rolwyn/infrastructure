@@ -223,8 +223,8 @@ Resources:
         Ref: VPC
       SecurityGroupEgress:
         - IpProtocol: tcp
-          FromPort: 3800
-          ToPort: 3800
+          FromPort: 5432
+          ToPort: 5432
           CidrIp: 0.0.0.0/0
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -276,6 +276,7 @@ Resources:
               export DB_PASSWORD=${MasterDBPassword}
               export DB_USER_NAME=${MasterDBUsername}
             EOF
+            pm2 reload all --update-env
       Tags:
       - Key: Name
         Value: !Sub 'EC2Instance-${AWS::StackName}'
