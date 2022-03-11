@@ -267,9 +267,14 @@ Resources:
           !Sub |
             #!/bin/bash
             yum update -y
-            touch /etc/profile.d/webenv.sh
-            chmod 777 /etc/profile.d/webenv.sh
-            cat > /etc/profile.d/webenv.sh << 'EOF'
+            chmod 777 /etc/environment
+            sed -i '/scripts-user/c\ - [scripts-user, always]' /etc/cloud/cloud.cfg
+            cd /var/lib/cloud/scripts/per-boot/
+            touch updateenv.sh
+            cat > /var/lib/cloud/scripts/per-boot/updateenv.sh << 'EOF'
+              sudo pm2 reload all --update-env
+            EOF
+            cat > /etc/environment << 'EOF'
               export DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
               export AWS_BUCKET_NAME=${S3BucketName}
               export AWS_BUCKET_REGION=${AWS::Region}
@@ -277,16 +282,13 @@ Resources:
               export DB_PASSWORD=${MasterDBPassword}
               export DB_USER_NAME=${MasterDBUsername}
             EOF
-            touch /home/ec2-user/webservice/.env
-            cat > /home/ec2-user/webservice/.env << 'EOF'
-              DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
-              AWS_BUCKET_NAME=${S3BucketName}
-              AWS_BUCKET_REGION=${AWS::Region}
-              DB_NAME=${DBName}
-              DB_PASSWORD=${MasterDBPassword}
-              DB_USER_NAME=${MasterDBUsername}
-            EOF
-            pm2 reload all --update-env
+            source /etc/profile
+            cd /home/ec2-user/webservice
+            rm -rf node_modules
+            sudo npm install
+            sudo systemctl enable webservice
+            sudo systemctl start webservice
+            sudo pm2 reload all --update-env
       Tags:
       - Key: Name
         Value: !Sub 'EC2Instance-${AWS::StackName}'
