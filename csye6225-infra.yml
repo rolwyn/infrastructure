@@ -477,6 +477,21 @@ Resources:
       InstanceProfileName: WebAppEC2InstanceProfile
       Roles:
         - !Ref WebAppS3EC2IAMRole
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: "ipv4"
+      Name: "ApplicationLoadBalancer"
+      # Scheme: "internet-facing"
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Subnets:
+        - !Ref subnet1
+        - !Ref subnet2
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-application-load-balancer'
+      Type: "application"
   LoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
