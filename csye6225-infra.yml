@@ -50,6 +50,9 @@ Parameters:
   S3BucketName:
     Type: String
     Default: "asdafglorious.dev.rolwynquadras.me"
+  sshKeyName:
+    Type: String
+    Default: "awsdev"
   # AZone1:
   #   Type: String
   #   Default: "a"
@@ -233,52 +236,52 @@ Resources:
       Tags:
       - Key: Name
         Value: !Sub '${AWS::StackName}-application-security-group'
-  EC2Instance:
-    Type: AWS::EC2::Instance
-    Properties:
-      ImageId: !Ref AmiId
-      InstanceType: "t2.micro"
-      SubnetId: !Ref subnet1
-      SecurityGroupIds:
-        - !Ref ApplicationSecurityGroup
-      DisableApiTermination: "false"
-      IamInstanceProfile: !Ref WebAppEC2InstanceProfile
-      BlockDeviceMappings:
-      - DeviceName: "/dev/xvda"
-        Ebs: 
-          VolumeType: "gp2"
-          DeleteOnTermination: "true"
-          VolumeSize: "20"
-      UserData:
-        Fn::Base64:
-          !Sub |
-            #!/bin/bash
-            yum update -y
-            chmod 777 /etc/environment
-            sed -i '/scripts-user/c\ - [scripts-user, always]' /etc/cloud/cloud.cfg
-            cd /var/lib/cloud/scripts/per-boot/
-            touch updateenv.sh
-            cat > /var/lib/cloud/scripts/per-boot/updateenv.sh << 'EOF'
-              sudo pm2 reload all --update-env
-            EOF
-            cat > /etc/environment << 'EOF'
-              export DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
-              export AWS_BUCKET_NAME=${S3BucketName}
-              export AWS_BUCKET_REGION=${AWS::Region}
-              export DB_NAME=${DBName}
-              export DB_PASSWORD=${MasterDBPassword}
-              export DB_USER_NAME=${MasterDBUsername}
-            EOF
-            source /etc/profile
-            cd /home/ec2-user/webservice
-            rm -rf node_modules
-            sudo npm install
-            sudo systemctl enable webservice
-            sudo systemctl start webservice
-            sudo pm2 reload all --update-env
-      Tags:
-      - Key: Name
-        Value: !Sub 'EC2Instance-${AWS::StackName}'
+  # EC2Instance:
+  #   Type: AWS::EC2::Instance
+  #   Properties:
+  #     ImageId: !Ref AmiId
+  #     InstanceType: "t2.micro"
+  #     SubnetId: !Ref subnet1
+  #     SecurityGroupIds:
+  #       - !Ref ApplicationSecurityGroup
+  #     DisableApiTermination: "false"
+  #     IamInstanceProfile: !Ref WebAppEC2InstanceProfile
+  #     BlockDeviceMappings:
+  #     - DeviceName: "/dev/xvda"
+  #       Ebs: 
+  #         VolumeType: "gp2"
+  #         DeleteOnTermination: "true"
+  #         VolumeSize: "20"
+  #     UserData:
+  #       Fn::Base64:
+  #         !Sub |
+  #           #!/bin/bash
+  #           yum update -y
+  #           chmod 777 /etc/environment
+  #           sed -i '/scripts-user/c\ - [scripts-user, always]' /etc/cloud/cloud.cfg
+  #           cd /var/lib/cloud/scripts/per-boot/
+  #           touch updateenv.sh
+  #           cat > /var/lib/cloud/scripts/per-boot/updateenv.sh << 'EOF'
+  #             sudo pm2 reload all --update-env
+  #           EOF
+  #           cat > /etc/environment << 'EOF'
+  #             export DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
+  #             export AWS_BUCKET_NAME=${S3BucketName}
+  #             export AWS_BUCKET_REGION=${AWS::Region}
+  #             export DB_NAME=${DBName}
+  #             export DB_PASSWORD=${MasterDBPassword}
+  #             export DB_USER_NAME=${MasterDBUsername}
+  #           EOF
+  #           source /etc/profile
+  #           cd /home/ec2-user/webservice
+  #           rm -rf node_modules
+  #           sudo npm install
+  #           sudo systemctl enable webservice
+  #           sudo systemctl start webservice
+  #           sudo pm2 reload all --update-env
+  #     Tags:
+  #     - Key: Name
+  #       Value: !Sub 'EC2Instance-${AWS::StackName}'
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -477,6 +480,57 @@ Resources:
       InstanceProfileName: WebAppEC2InstanceProfile
       Roles:
         - !Ref WebAppS3EC2IAMRole
+  AutoSGLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData: 
+        ImageId: !Ref AmiId
+        InstanceType: "t2.micro"
+        KeyName: !Ref sshKeyName
+        SecurityGroupIds:
+          - !Ref ApplicationSecurityGroup
+        DisableApiTermination: "false"
+        IamInstanceProfile: !Ref WebAppEC2InstanceProfile
+        AssociatePublicIpAddress: "true"
+        BlockDeviceMappings:
+        - DeviceName: "/dev/xvda"
+          Ebs: 
+            VolumeType: "gp2"
+            DeleteOnTermination: "true"
+            VolumeSize: "20"
+        UserData:
+          Fn::Base64:
+            !Sub |
+              #!/bin/bash
+              yum update -y
+              chmod 777 /etc/environment
+              sed -i '/scripts-user/c\ - [scripts-user, always]' /etc/cloud/cloud.cfg
+              cd /var/lib/cloud/scripts/per-boot/
+              touch updateenv.sh
+              cat > /var/lib/cloud/scripts/per-boot/updateenv.sh << 'EOF'
+                sudo pm2 reload all --update-env
+              EOF
+              cat > /etc/environment << 'EOF'
+                export DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
+                export AWS_BUCKET_NAME=${S3BucketName}
+                export AWS_BUCKET_REGION=${AWS::Region}
+                export DB_NAME=${DBName}
+                export DB_PASSWORD=${MasterDBPassword}
+                export DB_USER_NAME=${MasterDBUsername}
+              EOF
+              source /etc/profile
+              cd /home/ec2-user/webservice
+              rm -rf node_modules
+              sudo npm install
+              sudo systemctl enable webservice
+              sudo systemctl start webservice
+              sudo pm2 reload all --update-env
+        TagSpecifications: 
+          - ResourceType: "instance"
+            Tags:
+              - Key: Name
+                Value: !Sub 'EC2Instance-${AWS::StackName}'   
+      LaunchTemplateName: !Sub '${AWS::StackName}-asg-launch-template'
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
