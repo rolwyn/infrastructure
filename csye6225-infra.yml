@@ -482,7 +482,7 @@ Resources:
     Properties:
       IpAddressType: "ipv4"
       Name: "ApplicationLoadBalancer"
-      # Scheme: "internet-facing"
+      Scheme: "internet-facing"
       SecurityGroups:
         - !Ref LoadBalancerSecurityGroup
       Subnets:
@@ -492,6 +492,37 @@ Resources:
       - Key: Name
         Value: !Sub '${AWS::StackName}-application-load-balancer'
       Type: "application"
+  AppLoadBalancerTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties: 
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: 90
+      HealthCheckPath: "/"
+      HealthCheckPort: "3080"
+      HealthCheckProtocol: "HTTP"
+      HealthCheckTimeoutSeconds: 60
+      HealthyThresholdCount: 2
+      IpAddressType: "ipv4"
+      Matcher:
+        HttpCode: "200-299"
+      Name: "WebAppLbTargetGroup"
+      Port: 3080
+      Protocol: "HTTP"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-app-lb-tg'
+      TargetType: "instance"
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref VPC
+  AppLoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: "forward"
+          TargetGroupArn: !Ref AppLoadBalancerTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: "HTTP"
   LoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
