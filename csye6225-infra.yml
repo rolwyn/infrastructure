@@ -53,6 +53,9 @@ Parameters:
   sshKeyName:
     Type: String
     Default: "awsdev"
+  currentEnv:
+    Type: String
+    Default: "dev"
   # AZone1:
   #   Type: String
   #   Default: "a"
@@ -490,11 +493,11 @@ Resources:
         SecurityGroupIds:
           - !Ref ApplicationSecurityGroup
         DisableApiTermination: "false"
-        IamInstanceProfile: !Ref WebAppEC2InstanceProfile
-        AssociatePublicIpAddress: "true"
+        IamInstanceProfile:
+          Name: !Ref WebAppEC2InstanceProfile
         BlockDeviceMappings:
         - DeviceName: "/dev/xvda"
-          Ebs: 
+          Ebs:
             VolumeType: "gp2"
             DeleteOnTermination: "true"
             VolumeSize: "20"
@@ -534,40 +537,92 @@ Resources:
 
   AutoSGWebApp:
     Type: AWS::AutoScaling::AutoScalingGroup
-      Properties:
-        AutoScalingGroupName: !Sub ${AWS::StackName}-webapp-asg
-        AvailabilityZones:
-        - !Select [ 0, !GetAZs 'AWS::Region' ]
-        - !Select [ 1, !GetAZs 'AWS::Region' ]
-        - !Select [ 2, !GetAZs 'AWS::Region' ]
-        Cooldown: "60"
-        MinSize: "1"
-        MaxSize: "3"
-        DesiredCapacity: "1"
-        HealthCheckGracePeriod: 90
-        LaunchTemplate:
-          LaunchTemplateId: !Ref AutoSGLaunchTemplate
-          Version: !GetAtt AutoSGLaunchTemplate.LatestVersionNumber
-        NewInstancesProtectedFromScaleIn: false
-        VPCZoneIdentifier:
-          - !Ref subnet1
-          - !Ref subnet2
-          - !Ref subnet3
-        Tags:
-          - Key: Application
-            Value: WebApp
-            PropagateAtLaunch: "true"
-          - Key: Name
-            Value: !Sub ${AWS::StackName}-webapp-asg
-            PropagateAtLaunch: "true"
-        TargetGroupARNs:
-          - !Ref AppLoadBalancerTargetGroup
+    Properties:
+      AutoScalingGroupName: !Sub ${AWS::StackName}-webapp-asg
+      AvailabilityZones:
+        - !Select [ 0, !GetAZs '' ]
+        - !Select [ 1, !GetAZs '' ]
+        - !Select [ 2, !GetAZs '' ]
+      Cooldown: "60"
+      MinSize: "1"
+      MaxSize: "3"
+      DesiredCapacity: "2"
+      HealthCheckGracePeriod: 90
+      LaunchTemplate:
+        LaunchTemplateId: !Ref AutoSGLaunchTemplate
+        Version: !GetAtt AutoSGLaunchTemplate.LatestVersionNumber
+      NewInstancesProtectedFromScaleIn: false
+      VPCZoneIdentifier:
+        - !Ref subnet1
+        - !Ref subnet2
+        - !Ref subnet3
+      Tags:
+        - Key: Application
+          Value: WebApp
+          PropagateAtLaunch: "true"
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-webapp-asg
+          PropagateAtLaunch: "true"
+      TargetGroupARNs:
+        - !Ref AppLoadBalancerTargetGroup
+
+  AsgScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties: 
+      AdjustmentType: "ChangeInCapacity"
+      AutoScalingGroupName: !Ref AutoSGWebApp
+      Cooldown: "60"
+      ScalingAdjustment: 1
+
+  AsgScaleDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties: 
+      AdjustmentType: "ChangeInCapacity"
+      AutoScalingGroupName: !Ref AutoSGWebApp
+      Cooldown: "60"
+      ScalingAdjustment: -1
+
+  AvgCPUUsageHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmDescription: "Trigger when CPU usage is above 5%"
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 5.0
+      AlarmActions:
+        - !Ref AsgScaleUpPolicy
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions: 
+        - Name: AutoScalingGroupName
+          Value: !Ref AutoSGWebApp
+
+  AvgCPUUsageLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmDescription: "Trigger when CPU usage is below 3%"
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 3.0
+      AlarmActions:
+        - !Ref AsgScaleDownPolicy
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref AutoSGWebApp
 
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       IpAddressType: "ipv4"
-      Name: !Sub '${AWS::StackName}-application-load-balancer'
+      Name: !Sub '${AWS::StackName}-app-lb'
       Scheme: "internet-facing"
       SecurityGroups:
         - !Ref LoadBalancerSecurityGroup
@@ -577,7 +632,7 @@ Resources:
         - !Ref subnet3
       Tags:
       - Key: Name
-        Value: !Sub '${AWS::StackName}-application-load-balancer'
+        Value: !Sub '${AWS::StackName}-app-lb'
       Type: "application"
   AppLoadBalancerTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -629,6 +684,17 @@ Resources:
       Tags:
       - Key: Name
         Value: !Sub '${AWS::StackName}-loadbalancer-security-group'
+  DNSRecord:
+    Type: AWS::Route53::RecordSetGroup
+    Properties: 
+      Comment: "Accessing application through DNS"
+      HostedZoneName: !Sub '${currentEnv}.rolwynquadras.me'
+      RecordSets:
+        - Name: !Sub '${currentEnv}.rolwynquadras.me'
+          Type: "A"
+          AliasTarget:
+            DNSName: !GetAtt 'ApplicationLoadBalancer.DNSName'
+            HostedZoneId: !GetAtt 'ApplicationLoadBalancer.CanonicalHostedZoneID'
 Outputs:
   VpcId:
     Description: VPC ID
