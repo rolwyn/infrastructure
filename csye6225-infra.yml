@@ -631,8 +631,10 @@ Resources:
         - !Ref subnet2
         - !Ref subnet3
       Tags:
-      - Key: Name
-        Value: !Sub '${AWS::StackName}-app-lb'
+        - Key: Application
+          Value: WebApp
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-app-lb'
       Type: "application"
   AppLoadBalancerTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -691,7 +693,7 @@ Resources:
       HostedZoneName: !Sub '${currentEnv}.rolwynquadras.me'
       RecordSets:
         - Name: !Sub '${currentEnv}.rolwynquadras.me'
-          Type: "A"
+          Type: A
           AliasTarget:
             DNSName: !GetAtt 'ApplicationLoadBalancer.DNSName'
             HostedZoneId: !GetAtt 'ApplicationLoadBalancer.CanonicalHostedZoneID'
