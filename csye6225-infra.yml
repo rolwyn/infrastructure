@@ -482,7 +482,7 @@ Resources:
         - !Ref WebAppS3EC2IAMRole
   AutoSGLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
-    Properties:
+    Properties: 
       LaunchTemplateData: 
         ImageId: !Ref AmiId
         InstanceType: "t2.micro"
@@ -531,17 +531,50 @@ Resources:
               - Key: Name
                 Value: !Sub 'EC2Instance-${AWS::StackName}'   
       LaunchTemplateName: !Sub '${AWS::StackName}-asg-launch-template'
+
+  AutoSGWebApp:
+    Type: AWS::AutoScaling::AutoScalingGroup
+      Properties:
+        AutoScalingGroupName: !Sub ${AWS::StackName}-webapp-asg
+        AvailabilityZones:
+        - !Select [ 0, !GetAZs 'AWS::Region' ]
+        - !Select [ 1, !GetAZs 'AWS::Region' ]
+        - !Select [ 2, !GetAZs 'AWS::Region' ]
+        Cooldown: "60"
+        MinSize: "1"
+        MaxSize: "3"
+        DesiredCapacity: "1"
+        HealthCheckGracePeriod: 90
+        LaunchTemplate:
+          LaunchTemplateId: !Ref AutoSGLaunchTemplate
+          Version: !GetAtt AutoSGLaunchTemplate.LatestVersionNumber
+        NewInstancesProtectedFromScaleIn: false
+        VPCZoneIdentifier:
+          - !Ref subnet1
+          - !Ref subnet2
+          - !Ref subnet3
+        Tags:
+          - Key: Application
+            Value: WebApp
+            PropagateAtLaunch: "true"
+          - Key: Name
+            Value: !Sub ${AWS::StackName}-webapp-asg
+            PropagateAtLaunch: "true"
+        TargetGroupARNs:
+          - !Ref AppLoadBalancerTargetGroup
+
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       IpAddressType: "ipv4"
-      Name: "ApplicationLoadBalancer"
+      Name: !Sub '${AWS::StackName}-application-load-balancer'
       Scheme: "internet-facing"
       SecurityGroups:
         - !Ref LoadBalancerSecurityGroup
       Subnets:
         - !Ref subnet1
         - !Ref subnet2
+        - !Ref subnet3
       Tags:
       - Key: Name
         Value: !Sub '${AWS::StackName}-application-load-balancer'
@@ -559,7 +592,7 @@ Resources:
       IpAddressType: "ipv4"
       Matcher:
         HttpCode: "200-299"
-      Name: "WebAppLbTargetGroup"
+      Name: !Sub '${AWS::StackName}-app-lb-tg'
       Port: 3080
       Protocol: "HTTP"
       Tags:
