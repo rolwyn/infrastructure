@@ -544,9 +544,9 @@ Resources:
         - !Select [ 1, !GetAZs '' ]
         - !Select [ 2, !GetAZs '' ]
       Cooldown: "60"
-      MinSize: "1"
-      MaxSize: "3"
-      DesiredCapacity: "2"
+      MinSize: "3"
+      MaxSize: "5"
+      DesiredCapacity: "3"
       HealthCheckGracePeriod: 90
       LaunchTemplate:
         LaunchTemplateId: !Ref AutoSGLaunchTemplate
@@ -620,6 +620,9 @@ Resources:
 
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    DependsOn:
+      - AutoSGWebApp
+      - LoadBalancerSecurityGroup
     Properties:
       IpAddressType: "ipv4"
       Name: !Sub '${AWS::StackName}-app-lb'
@@ -642,7 +645,7 @@ Resources:
       HealthCheckEnabled: true
       HealthCheckIntervalSeconds: 90
       HealthCheckPath: "/"
-      HealthCheckPort: "3080"
+      HealthCheckPort: "3800"
       HealthCheckProtocol: "HTTP"
       HealthCheckTimeoutSeconds: 60
       HealthyThresholdCount: 2
@@ -650,7 +653,7 @@ Resources:
       Matcher:
         HttpCode: "200-299"
       Name: !Sub '${AWS::StackName}-app-lb-tg'
-      Port: 3080
+      Port: 3800
       Protocol: "HTTP"
       Tags:
         - Key: Name
@@ -690,9 +693,9 @@ Resources:
     Type: AWS::Route53::RecordSetGroup
     Properties: 
       Comment: "Accessing application through DNS"
-      HostedZoneName: !Sub '${currentEnv}.rolwynquadras.me'
+      HostedZoneName: !Sub '${currentEnv}.rolwynquadras.me.'
       RecordSets:
-        - Name: !Sub '${currentEnv}.rolwynquadras.me'
+        - Name: !Sub '${currentEnv}.rolwynquadras.me.'
           Type: A
           AliasTarget:
             DNSName: !GetAtt 'ApplicationLoadBalancer.DNSName'
