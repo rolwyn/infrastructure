@@ -537,6 +537,8 @@ Resources:
 
   AutoSGWebApp:
     Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn:
+      - ApplicationSecurityGroup
     Properties:
       AutoScalingGroupName: !Sub ${AWS::StackName}-webapp-asg
       AvailabilityZones:
