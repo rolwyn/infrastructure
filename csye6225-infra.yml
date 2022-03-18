@@ -50,6 +50,12 @@ Parameters:
   S3BucketName:
     Type: String
     Default: "asdafglorious.dev.rolwynquadras.me"
+  sshKeyName:
+    Type: String
+    Default: "awsdev"
+  currentEnv:
+    Type: String
+    Default: "dev"
   # AZone1:
   #   Type: String
   #   Default: "a"
@@ -221,75 +227,64 @@ Resources:
       GroupDescription: Web application security group
       VpcId:
         Ref: VPC
-      # SecurityGroupEgress:
-      #   - IpProtocol: tcp
-      #     FromPort: 5432
-      #     ToPort: 5432
-      #     CidrIp: 0.0.0.0/0
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
           FromPort: 3800
           ToPort: 3800
-          CidrIp: 0.0.0.0/0
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
       Tags:
       - Key: Name
         Value: !Sub '${AWS::StackName}-application-security-group'
-  EC2Instance:
-    Type: AWS::EC2::Instance
-    Properties:
-      ImageId: !Ref AmiId
-      InstanceType: "t2.micro"
-      SubnetId: !Ref subnet1
-      SecurityGroupIds:
-        - !Ref ApplicationSecurityGroup
-      DisableApiTermination: "false"
-      IamInstanceProfile: !Ref WebAppEC2InstanceProfile
-      BlockDeviceMappings:
-      - DeviceName: "/dev/xvda"
-        Ebs: 
-          VolumeType: "gp2"
-          DeleteOnTermination: "true"
-          VolumeSize: "20"
-      UserData:
-        Fn::Base64:
-          !Sub |
-            #!/bin/bash
-            yum update -y
-            touch /etc/profile.d/webenv.sh
-            chmod 777 /etc/profile.d/webenv.sh
-            cat > /etc/profile.d/webenv.sh << 'EOF'
-              export DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
-              export AWS_BUCKET_NAME=${S3BucketName}
-              export AWS_BUCKET_REGION=${AWS::Region}
-              export DB_NAME=${DBName}
-              export DB_PASSWORD=${MasterDBPassword}
-              export DB_USER_NAME=${MasterDBUsername}
-            EOF
-            touch /home/ec2-user/webservice/.env
-            cat > /home/ec2-user/webservice/.env << 'EOF'
-              DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
-              AWS_BUCKET_NAME=${S3BucketName}
-              AWS_BUCKET_REGION=${AWS::Region}
-              DB_NAME=${DBName}
-              DB_PASSWORD=${MasterDBPassword}
-              DB_USER_NAME=${MasterDBUsername}
-            EOF
-            pm2 reload all --update-env
-      Tags:
-      - Key: Name
-        Value: !Sub 'EC2Instance-${AWS::StackName}'
+  # EC2Instance:
+  #   Type: AWS::EC2::Instance
+  #   Properties:
+  #     ImageId: !Ref AmiId
+  #     InstanceType: "t2.micro"
+  #     SubnetId: !Ref subnet1
+  #     SecurityGroupIds:
+  #       - !Ref ApplicationSecurityGroup
+  #     DisableApiTermination: "false"
+  #     IamInstanceProfile: !Ref WebAppEC2InstanceProfile
+  #     BlockDeviceMappings:
+  #     - DeviceName: "/dev/xvda"
+  #       Ebs: 
+  #         VolumeType: "gp2"
+  #         DeleteOnTermination: "true"
+  #         VolumeSize: "20"
+  #     UserData:
+  #       Fn::Base64:
+  #         !Sub |
+  #           #!/bin/bash
+  #           yum update -y
+  #           chmod 777 /etc/environment
+  #           sed -i '/scripts-user/c\ - [scripts-user, always]' /etc/cloud/cloud.cfg
+  #           cd /var/lib/cloud/scripts/per-boot/
+  #           touch updateenv.sh
+  #           cat > /var/lib/cloud/scripts/per-boot/updateenv.sh << 'EOF'
+  #             sudo pm2 reload all --update-env
+  #           EOF
+  #           cat > /etc/environment << 'EOF'
+  #             export DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
+  #             export AWS_BUCKET_NAME=${S3BucketName}
+  #             export AWS_BUCKET_REGION=${AWS::Region}
+  #             export DB_NAME=${DBName}
+  #             export DB_PASSWORD=${MasterDBPassword}
+  #             export DB_USER_NAME=${MasterDBUsername}
+  #           EOF
+  #           source /etc/profile
+  #           cd /home/ec2-user/webservice
+  #           rm -rf node_modules
+  #           sudo npm install
+  #           sudo systemctl enable webservice
+  #           sudo systemctl start webservice
+  #           sudo pm2 reload all --update-env
+  #     Tags:
+  #     - Key: Name
+  #       Value: !Sub 'EC2Instance-${AWS::StackName}'
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -488,6 +483,231 @@ Resources:
       InstanceProfileName: WebAppEC2InstanceProfile
       Roles:
         - !Ref WebAppS3EC2IAMRole
+  AutoSGLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties: 
+      LaunchTemplateData: 
+        ImageId: !Ref AmiId
+        InstanceType: "t2.micro"
+        KeyName: !Ref sshKeyName
+        SecurityGroupIds:
+          - !Ref ApplicationSecurityGroup
+        DisableApiTermination: "false"
+        IamInstanceProfile:
+          Name: !Ref WebAppEC2InstanceProfile
+        BlockDeviceMappings:
+        - DeviceName: "/dev/xvda"
+          Ebs:
+            VolumeType: "gp2"
+            DeleteOnTermination: "true"
+            VolumeSize: "20"
+        UserData:
+          Fn::Base64:
+            !Sub |
+              #!/bin/bash
+              yum update -y
+              chmod 777 /etc/environment
+              sed -i '/scripts-user/c\ - [scripts-user, always]' /etc/cloud/cloud.cfg
+              cd /var/lib/cloud/scripts/per-boot/
+              touch updateenv.sh
+              cat > /var/lib/cloud/scripts/per-boot/updateenv.sh << 'EOF'
+                sudo pm2 reload all --update-env
+              EOF
+              cat > /etc/environment << 'EOF'
+                export DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
+                export AWS_BUCKET_NAME=${S3BucketName}
+                export AWS_BUCKET_REGION=${AWS::Region}
+                export DB_NAME=${DBName}
+                export DB_PASSWORD=${MasterDBPassword}
+                export DB_USER_NAME=${MasterDBUsername}
+              EOF
+              source /etc/profile
+              cd /home/ec2-user/webservice
+              rm -rf node_modules
+              sudo npm install
+              sudo systemctl enable webservice
+              sudo systemctl start webservice
+              sudo pm2 reload all --update-env
+        TagSpecifications: 
+          - ResourceType: "instance"
+            Tags:
+              - Key: Name
+                Value: !Sub 'EC2Instance-${AWS::StackName}'   
+      LaunchTemplateName: !Sub '${AWS::StackName}-asg-launch-template'
+
+  AutoSGWebApp:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn:
+      - ApplicationSecurityGroup
+    Properties:
+      AutoScalingGroupName: !Sub ${AWS::StackName}-webapp-asg
+      AvailabilityZones:
+        - !Select [ 0, !GetAZs '' ]
+        - !Select [ 1, !GetAZs '' ]
+        - !Select [ 2, !GetAZs '' ]
+      Cooldown: "60"
+      MinSize: "3"
+      MaxSize: "5"
+      DesiredCapacity: "3"
+      HealthCheckGracePeriod: 90
+      LaunchTemplate:
+        LaunchTemplateId: !Ref AutoSGLaunchTemplate
+        Version: !GetAtt AutoSGLaunchTemplate.LatestVersionNumber
+      NewInstancesProtectedFromScaleIn: false
+      VPCZoneIdentifier:
+        - !Ref subnet1
+        - !Ref subnet2
+        - !Ref subnet3
+      Tags:
+        - Key: Application
+          Value: WebApp
+          PropagateAtLaunch: "true"
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-webapp-asg
+          PropagateAtLaunch: "true"
+      TargetGroupARNs:
+        - !Ref AppLoadBalancerTargetGroup
+
+  AsgScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties: 
+      AdjustmentType: "ChangeInCapacity"
+      AutoScalingGroupName: !Ref AutoSGWebApp
+      Cooldown: "60"
+      ScalingAdjustment: 1
+
+  AsgScaleDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties: 
+      AdjustmentType: "ChangeInCapacity"
+      AutoScalingGroupName: !Ref AutoSGWebApp
+      Cooldown: "60"
+      ScalingAdjustment: -1
+
+  AvgCPUUsageHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmDescription: "Trigger when CPU usage is above 5%"
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 5.0
+      AlarmActions:
+        - !Ref AsgScaleUpPolicy
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions: 
+        - Name: AutoScalingGroupName
+          Value: !Ref AutoSGWebApp
+
+  AvgCPUUsageLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmDescription: "Trigger when CPU usage is below 3%"
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 3.0
+      AlarmActions:
+        - !Ref AsgScaleDownPolicy
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref AutoSGWebApp
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    DependsOn:
+      - AutoSGWebApp
+      - LoadBalancerSecurityGroup
+    Properties:
+      IpAddressType: "ipv4"
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '60'
+      Name: !Sub '${AWS::StackName}-app-lb'
+      Scheme: "internet-facing"
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Subnets:
+        - !Ref subnet1
+        - !Ref subnet2
+        - !Ref subnet3
+      Tags:
+        - Key: Application
+          Value: WebApp
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-app-lb'
+      Type: "application"
+  AppLoadBalancerTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties: 
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: 90
+      HealthCheckPath: "/healthz"
+      HealthCheckPort: "3800"
+      HealthCheckProtocol: "HTTP"
+      HealthCheckTimeoutSeconds: 60
+      HealthyThresholdCount: 2
+      IpAddressType: "ipv4"
+      Matcher:
+        HttpCode: "200-299"
+      Name: !Sub '${AWS::StackName}-app-lb-tg'
+      Port: 3800
+      Protocol: "HTTP"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-app-lb-tg'
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '20'
+      TargetType: "instance"
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref VPC
+  AppLoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: "forward"
+          TargetGroupArn: !Ref AppLoadBalancerTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: "HTTP"
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: LoadBalancerSecurityGroup
+      GroupDescription: LoadBalancer security group to allow TCP traffic on ports 80 and 443 from anywhere
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-loadbalancer-security-group'
+  DNSRecord:
+    Type: AWS::Route53::RecordSetGroup
+    Properties: 
+      Comment: "Accessing application through DNS"
+      HostedZoneName: !Sub '${currentEnv}.rolwynquadras.me.'
+      RecordSets:
+        - Name: !Sub '${currentEnv}.rolwynquadras.me.'
+          Type: A
+          AliasTarget:
+            DNSName: !GetAtt 'ApplicationLoadBalancer.DNSName'
+            HostedZoneId: !GetAtt 'ApplicationLoadBalancer.CanonicalHostedZoneID'
 Outputs:
   VpcId:
     Description: VPC ID

@@ -29,3 +29,6 @@ aws cloudformation create-stack --stack-name appstack --template-body file://csy
 S3 bucket commands
 aws s3 rm s3://bucketname --recursive --profile=dev
 aws s3api delete-bucket --bucket bucketname --region us-east-1 --profile=dev
+
+# AutoScaling
+aws cloudformation create-stack --stack-name appstack --template-body file://csye6225-infra.yml --parameters ParameterKey=VPCCidrBlock,ParameterValue="10.1.0.0/16" ParameterKey=SubnetCidrBlock1,ParameterValue="10.1.1.0/24" ParameterKey=SubnetCidrBlock2,ParameterValue="10.1.2.0/24" ParameterKey=SubnetCidrBlock3,ParameterValue="10.1.3.0/24" ParameterKey=PrivateSubCidrBlock1,ParameterValue="10.1.4.0/24" ParameterKey=PrivateSubCidrBlock2,ParameterValue="10.1.5.0/24" ParameterKey=PrivateSubCidrBlock3,ParameterValue="10.1.6.0/24" ParameterKey=S3BucketName,ParameterValue="asdafglorious.dev.rolwynquadras.me" ParameterKey=AmiId,ParameterValue="ami-033b95fb8079dc481" ParameterKey=sshKeyName,ParameterValue="awsdev" --region us-east-1 --profile=dev  --capabilities CAPABILITY_NAMED_IAM
