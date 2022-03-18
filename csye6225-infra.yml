@@ -627,6 +627,9 @@ Resources:
       - LoadBalancerSecurityGroup
     Properties:
       IpAddressType: "ipv4"
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '60'
       Name: !Sub '${AWS::StackName}-app-lb'
       Scheme: "internet-facing"
       SecurityGroups:
@@ -646,7 +649,7 @@ Resources:
     Properties: 
       HealthCheckEnabled: true
       HealthCheckIntervalSeconds: 90
-      HealthCheckPath: "/"
+      HealthCheckPath: "/healthz"
       HealthCheckPort: "3800"
       HealthCheckProtocol: "HTTP"
       HealthCheckTimeoutSeconds: 60
@@ -660,6 +663,9 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-app-lb-tg'
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '20'
       TargetType: "instance"
       UnhealthyThresholdCount: 2
       VpcId: !Ref VPC
