@@ -699,7 +699,7 @@ Resources:
         Value: !Sub '${AWS::StackName}-loadbalancer-security-group'
   DNSRecord:
     Type: AWS::Route53::RecordSetGroup
-    Properties: 
+    Properties:
       Comment: "Accessing application through DNS"
       HostedZoneName: !Sub '${currentEnv}.rolwynquadras.me.'
       RecordSets:
