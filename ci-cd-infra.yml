@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Cloud Formation VPC
+Parameters:
+  CodeDeployBucketName:
+    Type: String
+    Default: "myec2code-deploy-bucket"
+Resources:
+  # codedeploy ec2 s3 policy
+  CodeDeployEC2S3Policy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "s3:Get*"
+              - "s3:List*"
+            Resource:
+              - !Sub 'arn:aws:s3:::${CodeDeployBucketName}/'
+              - !Sub 'arn:aws:s3:::${CodeDeployBucketName}/*'
+      PolicyName: "CodeDeployEC2S3"
