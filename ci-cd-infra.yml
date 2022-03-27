@@ -142,3 +142,20 @@ Resources:
       InstanceProfileName: CodeDeployEC2Profile
       Roles:
         - !Ref CodeDeployEC2ServiceRole
+# create service role for codedeploy
+  CodeDeployServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codedeploy.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
+      RoleName: CodeDeployServiceRole
