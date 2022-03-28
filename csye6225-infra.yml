@@ -494,7 +494,7 @@ Resources:
           - !Ref ApplicationSecurityGroup
         DisableApiTermination: "false"
         IamInstanceProfile:
-          Name: !Ref WebAppEC2InstanceProfile
+          Name: CodeDeployEC2Profile
         BlockDeviceMappings:
         - DeviceName: "/dev/xvda"
           Ebs:
@@ -563,7 +563,7 @@ Resources:
           Value: WebApp
           PropagateAtLaunch: "true"
         - Key: Name
-          Value: !Sub ${AWS::StackName}-webapp-asg
+          Value: "webapp-asg"
           PropagateAtLaunch: "true"
       TargetGroupARNs:
         - !Ref AppLoadBalancerTargetGroup

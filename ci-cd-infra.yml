@@ -29,25 +29,26 @@ Resources:
   # github codedeploy policy for GA to call CodeDeploy
   GHCodeDeploy:
     Type: AWS::IAM::Policy
+    DependsOn:
+      - CodeDeployApplication
     Properties:
       Users:
         - "ghactions-app"
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
-          # - Effect: Allow
-          #   Action:
-          #     - "codedeploy:RegisterApplicationRevision"
-          #     - "codedeploy:GetApplicationRevision"
-          #   Resource:
-          #     - !Sub 'arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:application:csye6225-webapp'
-          # CREATE DEPLOYMENT GROUP FIRST
-          # - Effect: Allow
-          #   Action:
-          #     - "codedeploy:CreateDeployment"
-          #     - "codedeploy:GetDeployment"
-          #   Resource:
-          #     - !Sub 'arn:aws:codedeploy:AWS_REGION:AWS_ACCOUNT_ID:application:csye6225-webapp'
+          - Effect: Allow
+            Action:
+              - "codedeploy:RegisterApplicationRevision"
+              - "codedeploy:GetApplicationRevision"
+            Resource:
+              - !Sub 'arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:application:csye6225-webapp'
+          - Effect: Allow
+            Action:
+              - "codedeploy:CreateDeployment"
+              - "codedeploy:GetDeployment"
+            Resource:
+              - !Sub 'arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:application:csye6225-webapp'
           - Effect: Allow
             Action:
               - "codedeploy:GetDeploymentConfig"
@@ -155,7 +156,37 @@ Resources:
                 - codedeploy.amazonaws.com
             Action:
               - 'sts:AssumeRole'
-      Path: /
       ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
+        - 'arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole'
       RoleName: CodeDeployServiceRole
+    # create code deploy application
+  CodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: "csye6225-webapp"
+      ComputePlatform: "Server"
+      Tags: 
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-codedeploy-app'
+  CodeDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    DependsOn:
+      - CodeDeployApplication
+      - CodeDeployServiceRole
+    Properties:
+      DeploymentGroupName: "csye6225-webapp-deployment"
+      ApplicationName: "csye6225-webapp"
+      DeploymentStyle: 
+        DeploymentOption: "WITHOUT_TRAFFIC_CONTROL"
+        DeploymentType: "IN_PLACE"
+      DeploymentConfigName: "CodeDeployDefault.AllAtOnce"
+      AutoRollbackConfiguration:
+        Enabled: true
+        Events:
+          - "DEPLOYMENT_FAILURE"
+      Ec2TagFilters: 
+        - Key: "Name"
+          Type: "KEY_AND_VALUE"
+          Value: "webapp-asg"
+      OutdatedInstancesStrategy: "UPDATE"
+      ServiceRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/CodeDeployServiceRole'
