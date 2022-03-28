@@ -708,6 +708,36 @@ Resources:
           AliasTarget:
             DNSName: !GetAtt 'ApplicationLoadBalancer.DNSName'
             HostedZoneId: !GetAtt 'ApplicationLoadBalancer.CanonicalHostedZoneID'
+  CodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: "csye6225-webapp"
+      ComputePlatform: "Server"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-codedeploy-app'
+  CodeDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    # DependsOn:
+    #   - CodeDeployApplication
+    #   - CodeDeployServiceRole
+    Properties:
+      DeploymentGroupName: "csye6225-webapp-deployment"
+      ApplicationName: "csye6225-webapp"
+      DeploymentStyle:
+        DeploymentOption: "WITHOUT_TRAFFIC_CONTROL"
+        DeploymentType: "IN_PLACE"
+      DeploymentConfigName: "CodeDeployDefault.AllAtOnce"
+      AutoRollbackConfiguration:
+        Enabled: true
+        Events:
+          - "DEPLOYMENT_FAILURE"
+      Ec2TagFilters: 
+        - Key: "Name"
+          Type: "KEY_AND_VALUE"
+          Value: "webapp-asg"
+      OutdatedInstancesStrategy: "UPDATE"
+      ServiceRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/CodeDeployServiceRole'
 Outputs:
   VpcId:
     Description: VPC ID
