@@ -546,9 +546,9 @@ Resources:
         - !Select [ 1, !GetAZs '' ]
         - !Select [ 2, !GetAZs '' ]
       Cooldown: "60"
-      MinSize: "3"
+      MinSize: "1"
       MaxSize: "5"
-      DesiredCapacity: "3"
+      DesiredCapacity: "1"
       HealthCheckGracePeriod: 90
       LaunchTemplate:
         LaunchTemplateId: !Ref AutoSGLaunchTemplate
@@ -563,7 +563,7 @@ Resources:
           Value: WebApp
           PropagateAtLaunch: "true"
         - Key: Name
-          Value: "webapp-asg"
+          Value: !Sub '${AWS::StackName}-webapp-asg'
           PropagateAtLaunch: "true"
       TargetGroupARNs:
         - !Ref AppLoadBalancerTargetGroup
@@ -593,7 +593,7 @@ Resources:
       Namespace: AWS/EC2
       Statistic: Average
       Period: 60
-      EvaluationPeriods: 2
+      EvaluationPeriods: 1
       Threshold: 5.0
       AlarmActions:
         - !Ref AsgScaleUpPolicy
@@ -611,7 +611,7 @@ Resources:
       Namespace: AWS/EC2
       Statistic: Average
       Period: 60
-      EvaluationPeriods: 2
+      EvaluationPeriods: 1
       Threshold: 3.0
       AlarmActions:
         - !Ref AsgScaleDownPolicy
@@ -728,6 +728,8 @@ Resources:
         DeploymentOption: "WITHOUT_TRAFFIC_CONTROL"
         DeploymentType: "IN_PLACE"
       DeploymentConfigName: "CodeDeployDefault.AllAtOnce"
+      AutoScalingGroups: 
+        - !Ref AutoSGWebApp
       AutoRollbackConfiguration:
         Enabled: true
         Events:
@@ -735,8 +737,7 @@ Resources:
       Ec2TagFilters: 
         - Key: "Name"
           Type: "KEY_AND_VALUE"
-          Value: "webapp-asg"
-      OutdatedInstancesStrategy: "UPDATE"
+          Value: !Sub '${AWS::StackName}-webapp-asg'
       ServiceRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/CodeDeployServiceRole'
 Outputs:
   VpcId:
