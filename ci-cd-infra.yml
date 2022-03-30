@@ -4,7 +4,7 @@ Parameters:
   CodeDeployBucketName:
     Type: String
     Default: "codedeploy.rolwynquadras.me"
-  GHActionsUser: 
+  GHActionsUser:
     Type: String
     Default: "ghactions-app"
 Resources:
@@ -19,8 +19,8 @@ Resources:
         Statement:
           - Effect: Allow
             Action:
-              - "s3:Get*"
-              - "s3:List*"
+              - "s3:GetObject"
+              - "s3:ListBucket"
               - "s3:PutObject"
             Resource:
               - !Sub 'arn:aws:s3:::${CodeDeployBucketName}/'
@@ -101,46 +101,6 @@ Resources:
             Resource:
               - "*"
       PolicyName: "GHEC2Ami"
-  # codedeploy ec2 s3 policy
-  CodeDeployEC2S3Policy:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Action:
-              - "s3:Get*"
-              - "s3:List*"
-            Resource:
-              - !Sub 'arn:aws:s3:::${CodeDeployBucketName}/'
-              - !Sub 'arn:aws:s3:::${CodeDeployBucketName}/*'
-      PolicyName: "CodeDeployEC2S3"
-      Roles:
-        - !Ref CodeDeployEC2ServiceRole
-  # create code deploy service-role for ec2 instance to host the web application
-  CodeDeployEC2ServiceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - ec2.amazonaws.com
-            Action:
-              - 'sts:AssumeRole'
-      Path: /
-      RoleName: CodeDeployEC2ServiceRole
-  # create codedeploy instance profile and attach it to ec2
-  # can directly add it in cyse6225-infa as well using ManagedPolicyArns
-  EC2IAMProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      InstanceProfileName: CodeDeployEC2Profile
-      Roles:
-        - !Ref CodeDeployEC2ServiceRole
 # create service role for codedeploy
   CodeDeployServiceRole:
     Type: AWS::IAM::Role
@@ -157,4 +117,3 @@ Resources:
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole'
       RoleName: CodeDeployServiceRole
-    # create code deploy application

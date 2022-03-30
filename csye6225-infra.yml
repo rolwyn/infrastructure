@@ -56,6 +56,9 @@ Parameters:
   currentEnv:
     Type: String
     Default: "dev"
+  CodeDeployBucketName:
+    Type: String
+    Default: "codedeploy.rolwynquadras.me"
   # AZone1:
   #   Type: String
   #   Default: "a"
@@ -445,6 +448,22 @@ Resources:
         - !Ref PrivateSubnet1
         - !Ref PrivateSubnet2
         - !Ref PrivateSubnet3
+  EC2IAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      RoleName: EC2-CSYE6225
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
   WebAppS3EC2IAMPolicy:
     Type: AWS::IAM::Policy
     Properties:
@@ -461,28 +480,30 @@ Resources:
               - !Sub '${S3BuckeEncrypted.Arn}/*'
       PolicyName: "WebAppS3"
       Roles:
-        - !Ref WebAppS3EC2IAMRole
-  WebAppS3EC2IAMRole:
-    Type: AWS::IAM::Role
+        - !Ref EC2IAMRole
+  CodeDeployEC2S3Policy:
+    Type: AWS::IAM::Policy
     Properties:
-      AssumeRolePolicyDocument:
+      PolicyDocument:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
-            Principal:
-              Service:
-                - ec2.amazonaws.com
             Action:
-              - 'sts:AssumeRole'
-      Path: /
-      RoleName: EC2-CSYE6225
+              - "s3:GetObject"
+              - "s3:ListBucket"
+            Resource:
+              - !Sub 'arn:aws:s3:::${CodeDeployBucketName}/'
+              - !Sub 'arn:aws:s3:::${CodeDeployBucketName}/*'
+      PolicyName: "CodeDeployEC2S3"
+      Roles:
+        - !Ref EC2IAMRole
   WebAppEC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Path: /
-      InstanceProfileName: WebAppEC2InstanceProfile
+      InstanceProfileName: CodeDeployEC2Profile
       Roles:
-        - !Ref WebAppS3EC2IAMRole
+        - !Ref EC2IAMRole
   AutoSGLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties: 
