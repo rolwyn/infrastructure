@@ -46,7 +46,7 @@ Resources:
               - "codedeploy:CreateDeployment"
               - "codedeploy:GetDeployment"
             Resource:
-              - !Sub 'arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:application:csye6225-webapp'
+              - !Sub 'arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentgroup:csye6225-webapp/csye6225-webapp-deployment'
           - Effect: Allow
             Action:
               - "codedeploy:GetDeploymentConfig"

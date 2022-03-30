@@ -718,7 +718,8 @@ Resources:
           Value: !Sub '${AWS::StackName}-codedeploy-app'
   CodeDeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
-    # DependsOn:
+    DependsOn:
+      - AutoSGWebApp
     #   - CodeDeployApplication
     #   - CodeDeployServiceRole
     Properties:
@@ -728,16 +729,17 @@ Resources:
         DeploymentOption: "WITHOUT_TRAFFIC_CONTROL"
         DeploymentType: "IN_PLACE"
       DeploymentConfigName: "CodeDeployDefault.AllAtOnce"
-      AutoScalingGroups: 
-        - !Ref AutoSGWebApp
+      AutoScalingGroups:
+        - !Sub ${AWS::StackName}-webapp-asg
       AutoRollbackConfiguration:
         Enabled: true
         Events:
           - "DEPLOYMENT_FAILURE"
       Ec2TagFilters: 
-        - Key: "Name"
-          Type: "KEY_AND_VALUE"
-          Value: !Sub '${AWS::StackName}-webapp-asg'
+        - Key: Application
+          Type: KEY_AND_VALUE
+          Value: WebApp
+      OutdatedInstancesStrategy: UPDATE
       ServiceRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/CodeDeployServiceRole'
 Outputs:
   VpcId:
