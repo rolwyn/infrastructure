@@ -56,6 +56,9 @@ Parameters:
   currentEnv:
     Type: String
     Default: "dev"
+  CodeDeployBucketName:
+    Type: String
+    Default: "codedeploy.rolwynquadras.me"
   # AZone1:
   #   Type: String
   #   Default: "a"
@@ -445,6 +448,22 @@ Resources:
         - !Ref PrivateSubnet1
         - !Ref PrivateSubnet2
         - !Ref PrivateSubnet3
+  EC2IAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      RoleName: EC2-CSYE6225
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
   WebAppS3EC2IAMPolicy:
     Type: AWS::IAM::Policy
     Properties:
@@ -461,28 +480,30 @@ Resources:
               - !Sub '${S3BuckeEncrypted.Arn}/*'
       PolicyName: "WebAppS3"
       Roles:
-        - !Ref WebAppS3EC2IAMRole
-  WebAppS3EC2IAMRole:
-    Type: AWS::IAM::Role
+        - !Ref EC2IAMRole
+  CodeDeployEC2S3Policy:
+    Type: AWS::IAM::Policy
     Properties:
-      AssumeRolePolicyDocument:
+      PolicyDocument:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
-            Principal:
-              Service:
-                - ec2.amazonaws.com
             Action:
-              - 'sts:AssumeRole'
-      Path: /
-      RoleName: EC2-CSYE6225
+              - "s3:GetObject"
+              - "s3:ListBucket"
+            Resource:
+              - !Sub 'arn:aws:s3:::${CodeDeployBucketName}/'
+              - !Sub 'arn:aws:s3:::${CodeDeployBucketName}/*'
+      PolicyName: "CodeDeployEC2S3"
+      Roles:
+        - !Ref EC2IAMRole
   WebAppEC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Path: /
-      InstanceProfileName: WebAppEC2InstanceProfile
+      InstanceProfileName: CodeDeployEC2Profile
       Roles:
-        - !Ref WebAppS3EC2IAMRole
+        - !Ref EC2IAMRole
   AutoSGLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties: 
@@ -494,7 +515,7 @@ Resources:
           - !Ref ApplicationSecurityGroup
         DisableApiTermination: "false"
         IamInstanceProfile:
-          Name: !Ref WebAppEC2InstanceProfile
+          Name: CodeDeployEC2Profile
         BlockDeviceMappings:
         - DeviceName: "/dev/xvda"
           Ebs:
@@ -546,9 +567,9 @@ Resources:
         - !Select [ 1, !GetAZs '' ]
         - !Select [ 2, !GetAZs '' ]
       Cooldown: "60"
-      MinSize: "3"
+      MinSize: "1"
       MaxSize: "5"
-      DesiredCapacity: "3"
+      DesiredCapacity: "1"
       HealthCheckGracePeriod: 90
       LaunchTemplate:
         LaunchTemplateId: !Ref AutoSGLaunchTemplate
@@ -563,7 +584,7 @@ Resources:
           Value: WebApp
           PropagateAtLaunch: "true"
         - Key: Name
-          Value: !Sub ${AWS::StackName}-webapp-asg
+          Value: !Sub '${AWS::StackName}-webapp-asg'
           PropagateAtLaunch: "true"
       TargetGroupARNs:
         - !Ref AppLoadBalancerTargetGroup
@@ -593,7 +614,7 @@ Resources:
       Namespace: AWS/EC2
       Statistic: Average
       Period: 60
-      EvaluationPeriods: 2
+      EvaluationPeriods: 1
       Threshold: 5.0
       AlarmActions:
         - !Ref AsgScaleUpPolicy
@@ -611,7 +632,7 @@ Resources:
       Namespace: AWS/EC2
       Statistic: Average
       Period: 60
-      EvaluationPeriods: 2
+      EvaluationPeriods: 1
       Threshold: 3.0
       AlarmActions:
         - !Ref AsgScaleDownPolicy
@@ -699,7 +720,7 @@ Resources:
         Value: !Sub '${AWS::StackName}-loadbalancer-security-group'
   DNSRecord:
     Type: AWS::Route53::RecordSetGroup
-    Properties: 
+    Properties:
       Comment: "Accessing application through DNS"
       HostedZoneName: !Sub '${currentEnv}.rolwynquadras.me.'
       RecordSets:
@@ -708,6 +729,39 @@ Resources:
           AliasTarget:
             DNSName: !GetAtt 'ApplicationLoadBalancer.DNSName'
             HostedZoneId: !GetAtt 'ApplicationLoadBalancer.CanonicalHostedZoneID'
+  CodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: "csye6225-webapp"
+      ComputePlatform: "Server"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-codedeploy-app'
+  CodeDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    DependsOn:
+      - AutoSGWebApp
+    #   - CodeDeployApplication
+    #   - CodeDeployServiceRole
+    Properties:
+      DeploymentGroupName: "csye6225-webapp-deployment"
+      ApplicationName: "csye6225-webapp"
+      DeploymentStyle:
+        DeploymentOption: "WITHOUT_TRAFFIC_CONTROL"
+        DeploymentType: "IN_PLACE"
+      DeploymentConfigName: "CodeDeployDefault.AllAtOnce"
+      AutoScalingGroups:
+        - !Sub ${AWS::StackName}-webapp-asg
+      AutoRollbackConfiguration:
+        Enabled: true
+        Events:
+          - "DEPLOYMENT_FAILURE"
+      Ec2TagFilters: 
+        - Key: Application
+          Type: KEY_AND_VALUE
+          Value: WebApp
+      OutdatedInstancesStrategy: UPDATE
+      ServiceRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/CodeDeployServiceRole'
 Outputs:
   VpcId:
     Description: VPC ID
