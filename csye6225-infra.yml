@@ -463,6 +463,7 @@ Resources:
       Path: /
       RoleName: EC2-CSYE6225
       ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/CloudWatchAgentAdminPolicy"
         - "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
   WebAppS3EC2IAMPolicy:
     Type: AWS::IAM::Policy
