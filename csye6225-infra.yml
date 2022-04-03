@@ -533,6 +533,7 @@ Resources:
               touch updateenv.sh
               cat > /var/lib/cloud/scripts/per-boot/updateenv.sh << 'EOF'
                 sudo pm2 reload all --update-env
+                sudo pm2 startOrReload ecosystem.config.js --name webapp
               EOF
               cat > /etc/environment << 'EOF'
                 export DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
@@ -549,6 +550,8 @@ Resources:
               sudo systemctl enable webservice
               sudo systemctl start webservice
               sudo pm2 reload all --update-env
+              sudo pm2 startOrReload ecosystem.config.js --name webapp
+              sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/home/ec2-user/webservice/amazon-cloudwatch-config.json -s
         TagSpecifications: 
           - ResourceType: "instance"
             Tags:
