@@ -534,7 +534,6 @@ Resources:
               touch updateenv.sh
               cat > /var/lib/cloud/scripts/per-boot/updateenv.sh << 'EOF'
                 sudo pm2 reload all --update-env
-                sudo pm2 startOrReload ecosystem.config.js --name webapp
               EOF
               cat > /etc/environment << 'EOF'
                 export DB_ADDRESS=${RDSDBInstance.Endpoint.Address}
@@ -551,9 +550,9 @@ Resources:
               sudo systemctl enable webservice
               sudo systemctl start webservice
               sudo pm2 reload all --update-env
-              sudo pm2 startOrReload ecosystem.config.js --name webapp
+              sudo pm2 startOrReload ecosystem.config.js
               sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/home/ec2-user/webservice/amazon-cloudwatch-config.json -s
-        TagSpecifications: 
+        TagSpecifications:
           - ResourceType: "instance"
             Tags:
               - Key: Name
@@ -766,6 +765,33 @@ Resources:
           Value: WebApp
       OutdatedInstancesStrategy: UPDATE
       ServiceRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/CodeDeployServiceRole'
+
+  # creating log groups and streams
+  CWLogErrorGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName : csye6225-webapp-error
+      RetentionInDays: 5
+
+  CWLogErrorStream:
+    Type: AWS::Logs::LogStream
+    DependsOn: CWLogErrorGroup
+    Properties:
+      LogGroupName: "csye6225-webapp-error"
+      LogStreamName: "webapp-error-logs"
+
+  CWLogOutputGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName : csye6225-webapp-output
+      RetentionInDays: 5
+
+  CWLogOutputStream:
+    Type: AWS::Logs::LogStream
+    DependsOn: CWLogOutputGroup
+    Properties:
+      LogGroupName: "csye6225-webapp-output"
+      LogStreamName: "webapp-output-logs"
 Outputs:
   VpcId:
     Description: VPC ID
