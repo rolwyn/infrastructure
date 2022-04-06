@@ -35,3 +35,5 @@ aws cloudformation create-stack --stack-name appstack --template-body file://csy
 
 # CodeDeploy Stack
 aws cloudformation create-stack --stack-name codedeploystack --template-body file://ci-cd-infra.yml --parameters ParameterKey=CodeDeployBucketName,ParameterValue="codedeploy.rolwynquadras.me" --region us-east-1 --profile=demo --capabilities CAPABILITY_NAMED_IAM
+
+# Cloudwatch logs added
