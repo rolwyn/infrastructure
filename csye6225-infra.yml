@@ -792,6 +792,20 @@ Resources:
     Properties:
       LogGroupName: "csye6225-webapp-output"
       LogStreamName: "webapp-output-logs"
+
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties: 
+      ContentBasedDeduplication: false
+      DisplayName: 'UserVerificationTopic'
+      # KmsMasterKeyId: String
+      Subscription: 
+        - Endpoint: String
+          Protocol: String
+      Tags: 
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-sns-topic'
+      TopicName: 'UserVerificationTopic'
 Outputs:
   VpcId:
     Description: VPC ID
