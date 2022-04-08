@@ -465,6 +465,7 @@ Resources:
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/CloudWatchAgentAdminPolicy"
         - "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
+        - "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
   WebAppS3EC2IAMPolicy:
     Type: AWS::IAM::Policy
     Properties:
@@ -795,6 +796,8 @@ Resources:
 
   SNSTopic:
     Type: AWS::SNS::Topic
+    DependsOn:
+      - LambdaFunction
     Properties: 
       ContentBasedDeduplication: false
       DisplayName: 'UserVerificationTopic'
@@ -802,11 +805,22 @@ Resources:
       Subscription: 
         - Endpoint: String
           Protocol: String
-      Tags: 
+      Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-sns-topic'
       TopicName: 'UserVerificationTopic'
   
+  LambdaSNSPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - SNSTopic
+    Properties: 
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt LambdaFunction.Arn
+      Principal: sns.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+      SourceArn: !Ref SNSTopic
+
   # create lambda execution role
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -824,10 +838,14 @@ Resources:
       RoleName: lambda-execution-role
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        - "arn:aws:iam::aws:policy/AmazonSESFullAccess"
+        - "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
 
   # create lambda function
   LambdaFunction:
     Type: AWS::Lambda::Function
+    DependsOn:
+      - LambdaExecutionRole
     Properties:
       Code:
         ZipFile: String
