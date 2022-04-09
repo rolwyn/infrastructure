@@ -794,6 +794,24 @@ Resources:
       LogGroupName: "csye6225-webapp-output"
       LogStreamName: "webapp-output-logs"
 
+  TableDynamoDB:
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - AttributeName: id
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema: 
+        - AttributeName: id
+          KeyType: HASH
+      TableName: emailService
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-dynamo-tb'
+      TimeToLiveSpecification: 
+        AttributeName: ttl
+        Enabled: true
+
   SNSTopic:
     Type: AWS::SNS::Topic
     DependsOn:
