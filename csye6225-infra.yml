@@ -59,6 +59,9 @@ Parameters:
   CodeDeployBucketName:
     Type: String
     Default: "codedeploy.rolwynquadras.me"
+  LambdaBucketName:
+    Type: String
+    Default: "lambdabucket.rolwynquadras.me"
   # AZone1:
   #   Type: String
   #   Default: "a"
@@ -482,7 +485,33 @@ Resources:
       PolicyName: "WebAppS3"
       Roles:
         - !Ref EC2IAMRole
-
+  # policy for lambda-user to upload to s3 and lambda update
+  GHLambdaS3Policy:
+    Type: AWS::IAM::Policy
+    DependsOn:
+      - LambdaFunction
+    Properties:
+      Users:
+        - "ghactions-lambda"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "s3:GetObject"
+              - "s3:ListBucket"
+              - "s3:PutObject"
+            Resource:
+              - !Sub 'arn:aws:s3:::${LambdaBucketName}/'
+              - !Sub 'arn:aws:s3:::${LambdaBucketName}/*'
+          - Effect: Allow
+            Action:
+              - "lambda:GetFunction"
+              - "lambda:UpdateFunctionCode"
+            Resource:
+              - !GetAtt LambdaFunction.Arn
+      PolicyName: "GHLambdaS3Policy"
+  # lambda policy for function
   LambdaPolicy:
     Type: AWS::IAM::Policy
     DependsOn:
@@ -855,12 +884,10 @@ Resources:
     DependsOn:
       - LambdaFunction
     Properties:
-      ContentBasedDeduplication: false
       DisplayName: 'UserVerificationTopic'
-      # KmsMasterKeyId: String
-      Subscription: 
-        - Endpoint: String
-          Protocol: String
+      Subscription:
+        - Endpoint: !GetAtt LambdaFunction.Arn
+          Protocol: lambda
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-sns-topic'
