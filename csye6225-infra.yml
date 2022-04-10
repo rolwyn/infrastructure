@@ -798,16 +798,19 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties: 
       AttributeDefinitions: 
-        - AttributeName: id
+        - AttributeName: emailid
           AttributeType: S
-      BillingMode: PAY_PER_REQUEST
-      KeySchema: 
-        - AttributeName: id
+      KeySchema:
+        - AttributeName: emailid
           KeyType: HASH
-      TableName: emailService
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 20
+        WriteCapacityUnits: 20
+      TableName: emailTokenTbl
       Tags:
         - Key: Name
-          Value: !Sub '${AWS::StackName}-dynamo-tb'
+          Value: !Sub '${AWS::StackName}-token-tb'
       TimeToLiveSpecification: 
         AttributeName: ttl
         Enabled: true
@@ -816,7 +819,7 @@ Resources:
     Type: AWS::SNS::Topic
     DependsOn:
       - LambdaFunction
-    Properties: 
+    Properties:
       ContentBasedDeduplication: false
       DisplayName: 'UserVerificationTopic'
       # KmsMasterKeyId: String
@@ -866,17 +869,18 @@ Resources:
       - LambdaExecutionRole
     Properties:
       Code:
-        ZipFile: String
+        ZipFile: exports.emailVerification = function (event, context, callback){ console.log('Test'); callback(null); }
       Description: Lambda function for verification emails
       Environment:
         Variables:
           RDSDBNAME: !Ref DBName
           RDSDBUSER: !Ref MasterDBUsername
           RDSDBPASSWORD: !Ref MasterDBPassword
-      Handler: emailService
+          DomainName: !Sub '${currentEnv}.rolwynquadras.me'
+      Handler: index.emailVerification
       MemorySize: 128
       PackageType: Zip
-      Role: !Ref LambdaExecutionRole
+      Role: !GetAtt LambdaExecutionRole.Arn
       Runtime: nodejs14.x
       Tags:
         - Key: Name
