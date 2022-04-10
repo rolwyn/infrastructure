@@ -465,7 +465,6 @@ Resources:
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/CloudWatchAgentAdminPolicy"
         - "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
-        - "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
   WebAppS3EC2IAMPolicy:
     Type: AWS::IAM::Policy
     Properties:
@@ -483,6 +482,42 @@ Resources:
       PolicyName: "WebAppS3"
       Roles:
         - !Ref EC2IAMRole
+
+  LambdaPolicy:
+    Type: AWS::IAM::Policy
+    DependsOn:
+      - SNSTopic
+      - DynamoTokenTbl
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "dynamodb:GetItem"
+              - "dynamodb:PutItem"
+              - "dynamodb:UpdateItem"
+            Resource:
+              - !GetAtt DynamoTokenTbl.Arn
+          - Effect: Allow
+            Action:
+              - "ses:SendEmail"
+              - "ses:SendRawEmail"
+            Resource:
+              - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${currentEnv}.rolwynquadras.me'
+          - Effect: Allow
+            Action:
+              - "sns:ListTopics"
+              - "sns:CreateTopic"
+              - "sns:GetTopicAttributes"
+              - "sns:Publish"
+              - "sns:ConfirmSubscription"
+            Resource:
+              - !Ref SNSTopic
+      PolicyName: "LambdaPolicy"
+      Roles:
+        - !Ref LambdaExecutionRole
+
   CodeDeployEC2S3Policy:
     Type: AWS::IAM::Policy
     Properties:
@@ -794,7 +829,7 @@ Resources:
       LogGroupName: "csye6225-webapp-output"
       LogStreamName: "webapp-output-logs"
 
-  TableDynamoDB:
+  DynamoTokenTbl:
     Type: AWS::DynamoDB::Table
     Properties: 
       AttributeDefinitions: 
@@ -859,8 +894,8 @@ Resources:
       RoleName: lambda-execution-role
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-        - "arn:aws:iam::aws:policy/AmazonSESFullAccess"
-        - "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
+        # - "arn:aws:iam::aws:policy/AmazonSESFullAccess"
+        # - "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
 
   # create lambda function
   LambdaFunction:
