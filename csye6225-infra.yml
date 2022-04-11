@@ -546,6 +546,7 @@ Resources:
       PolicyName: "LambdaPolicy"
       Roles:
         - !Ref LambdaExecutionRole
+        - !Ref EC2IAMRole
 
   CodeDeployEC2S3Policy:
     Type: AWS::IAM::Policy
@@ -939,6 +940,7 @@ Resources:
           RDSDBUSER: !Ref MasterDBUsername
           RDSDBPASSWORD: !Ref MasterDBPassword
           DomainName: !Sub '${currentEnv}.rolwynquadras.me'
+      FunctionName: EmailVerification
       Handler: index.emailVerification
       MemorySize: 128
       PackageType: Zip
