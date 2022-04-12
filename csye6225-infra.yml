@@ -59,6 +59,9 @@ Parameters:
   CodeDeployBucketName:
     Type: String
     Default: "codedeploy.rolwynquadras.me"
+  LambdaBucketName:
+    Type: String
+    Default: "lambdabucket.rolwynquadras.me"
   # AZone1:
   #   Type: String
   #   Default: "a"
@@ -482,6 +485,69 @@ Resources:
       PolicyName: "WebAppS3"
       Roles:
         - !Ref EC2IAMRole
+  # policy for lambda-user to upload to s3 and lambda update
+  GHLambdaS3Policy:
+    Type: AWS::IAM::Policy
+    DependsOn:
+      - LambdaFunction
+    Properties:
+      Users:
+        - "ghactions-lambda"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "s3:GetObject"
+              - "s3:ListBucket"
+              - "s3:PutObject"
+            Resource:
+              - !Sub 'arn:aws:s3:::${LambdaBucketName}/'
+              - !Sub 'arn:aws:s3:::${LambdaBucketName}/*'
+          - Effect: Allow
+            Action:
+              - "lambda:GetFunction"
+              - "lambda:UpdateFunctionCode"
+            Resource:
+              - !GetAtt LambdaFunction.Arn
+      PolicyName: "GHLambdaS3Policy"
+  # lambda policy for function
+  LambdaPolicy:
+    Type: AWS::IAM::Policy
+    DependsOn:
+      - SNSTopic
+      - DynamoTokenTbl
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "dynamodb:GetItem"
+              - "dynamodb:PutItem"
+              - "dynamodb:UpdateItem"
+            Resource:
+              - !GetAtt DynamoTokenTbl.Arn
+              - !GetAtt DynamoEmailListTbl.Arn
+          - Effect: Allow
+            Action:
+              - "ses:SendEmail"
+              - "ses:SendRawEmail"
+            Resource:
+              - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${currentEnv}.rolwynquadras.me'
+          - Effect: Allow
+            Action:
+              - "sns:ListTopics"
+              - "sns:CreateTopic"
+              - "sns:GetTopicAttributes"
+              - "sns:Publish"
+            Resource:
+              - !Ref SNSTopic
+      PolicyName: "LambdaPolicy"
+      Roles:
+        - !Ref LambdaExecutionRole
+        - !Ref EC2IAMRole
+
   CodeDeployEC2S3Policy:
     Type: AWS::IAM::Policy
     Properties:
@@ -542,6 +608,7 @@ Resources:
                 export DB_NAME=${DBName}
                 export DB_PASSWORD=${MasterDBPassword}
                 export DB_USER_NAME=${MasterDBUsername}
+                export SNS_TOPIC_ARN=${SNSTopic}
               EOF
               source /etc/profile
               cd /home/ec2-user/webservice
@@ -792,6 +859,118 @@ Resources:
     Properties:
       LogGroupName: "csye6225-webapp-output"
       LogStreamName: "webapp-output-logs"
+
+  DynamoTokenTbl:
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - AttributeName: emailid
+          AttributeType: S
+      KeySchema:
+        - AttributeName: emailid
+          KeyType: HASH
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 20
+        WriteCapacityUnits: 20
+      TableName: emailTokenTbl
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-token-tb'
+      TimeToLiveSpecification: 
+        AttributeName: ttl
+        Enabled: true
+  
+  DynamoEmailListTbl:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions: 
+        - AttributeName: emailid
+          AttributeType: S
+      KeySchema:
+        - AttributeName: emailid
+          KeyType: HASH
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 20
+        WriteCapacityUnits: 20
+      TableName: emailListTbl
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-emaillist-tb'
+      TimeToLiveSpecification: 
+        AttributeName: ttl
+        Enabled: false
+
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    DependsOn:
+      - LambdaFunction
+    Properties:
+      DisplayName: 'UserVerificationTopic'
+      Subscription:
+        - Endpoint: !GetAtt LambdaFunction.Arn
+          Protocol: lambda
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-sns-topic'
+      TopicName: 'UserVerificationTopic'
+  
+  LambdaSNSPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - SNSTopic
+    Properties: 
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt LambdaFunction.Arn
+      Principal: sns.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+      SourceArn: !Ref SNSTopic
+
+  # create lambda execution role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      RoleName: lambda-execution-role
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+
+  # create lambda function
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - LambdaExecutionRole
+    Properties:
+      Code:
+        ZipFile: |
+          exports.emailVerification = (event, context, callback) => { 
+            console.log('Lambda function for email');
+            callback(null);
+          }
+      Description: Lambda function for verification emails
+      Environment:
+        Variables:
+          DomainName: !Sub '${currentEnv}.rolwynquadras.me'
+      FunctionName: EmailVerification
+      Handler: index.emailVerification
+      MemorySize: 128
+      PackageType: Zip
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: nodejs14.x
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-lambda-emailfn'
+      Timeout: 15
 Outputs:
   VpcId:
     Description: VPC ID
