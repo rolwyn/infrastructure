@@ -541,7 +541,6 @@ Resources:
               - "sns:CreateTopic"
               - "sns:GetTopicAttributes"
               - "sns:Publish"
-              - "sns:ConfirmSubscription"
             Resource:
               - !Ref SNSTopic
       PolicyName: "LambdaPolicy"
@@ -609,7 +608,7 @@ Resources:
                 export DB_NAME=${DBName}
                 export DB_PASSWORD=${MasterDBPassword}
                 export DB_USER_NAME=${MasterDBUsername}
-                export SNS_TOPIC_ARN=${SNSTopic.Arn}
+                export SNS_TOPIC_ARN=${SNSTopic}
               EOF
               source /etc/profile
               cd /home/ec2-user/webservice
@@ -945,8 +944,6 @@ Resources:
       RoleName: lambda-execution-role
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-        # - "arn:aws:iam::aws:policy/AmazonSESFullAccess"
-        # - "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
 
   # create lambda function
   LambdaFunction:
@@ -955,13 +952,14 @@ Resources:
       - LambdaExecutionRole
     Properties:
       Code:
-        ZipFile: exports.emailVerification = async (event, context, callback) => { console.log('Lambda function for email'); callback(null); }
+        ZipFile: |
+          exports.emailVerification = (event, context, callback) => { 
+            console.log('Lambda function for email');
+            callback(null);
+          }
       Description: Lambda function for verification emails
       Environment:
         Variables:
-          RDSDBNAME: !Ref DBName
-          RDSDBUSER: !Ref MasterDBUsername
-          RDSDBPASSWORD: !Ref MasterDBPassword
           DomainName: !Sub '${currentEnv}.rolwynquadras.me'
       FunctionName: EmailVerification
       Handler: index.emailVerification
