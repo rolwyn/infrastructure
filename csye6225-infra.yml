@@ -609,7 +609,7 @@ Resources:
                 export DB_NAME=${DBName}
                 export DB_PASSWORD=${MasterDBPassword}
                 export DB_USER_NAME=${MasterDBUsername}
-                export SNS_TOPIC_ARN=${SNSTopic}
+                export SNS_TOPIC_ARN=${SNSTopic.Arn}
               EOF
               source /etc/profile
               cd /home/ec2-user/webservice
