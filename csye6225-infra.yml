@@ -517,6 +517,7 @@ Resources:
     DependsOn:
       - SNSTopic
       - DynamoTokenTbl
+      - DynamoEmailListTbl
     Properties:
       PolicyDocument:
         Version: "2012-10-17"
@@ -957,7 +958,7 @@ Resources:
             console.log('Lambda function for email');
             callback(null);
           }
-      Description: Lambda function for verification emails
+      Description: Lambda function for email sending
       Environment:
         Variables:
           DomainName: !Sub '${currentEnv}.rolwynquadras.me'
