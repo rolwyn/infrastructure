@@ -528,6 +528,7 @@ Resources:
               - "dynamodb:UpdateItem"
             Resource:
               - !GetAtt DynamoTokenTbl.Arn
+              - !GetAtt DynamoEmailListTbl.Arn
           - Effect: Allow
             Action:
               - "ses:SendEmail"
@@ -608,6 +609,7 @@ Resources:
                 export DB_NAME=${DBName}
                 export DB_PASSWORD=${MasterDBPassword}
                 export DB_USER_NAME=${MasterDBUsername}
+                export SNS_TOPIC_ARN=${SNSTopic}
               EOF
               source /etc/profile
               cd /home/ec2-user/webservice
@@ -879,6 +881,27 @@ Resources:
       TimeToLiveSpecification: 
         AttributeName: ttl
         Enabled: true
+  
+  DynamoEmailListTbl:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions: 
+        - AttributeName: emailid
+          AttributeType: S
+      KeySchema:
+        - AttributeName: emailid
+          KeyType: HASH
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 20
+        WriteCapacityUnits: 20
+      TableName: emailListTbl
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-emaillist-tb'
+      TimeToLiveSpecification: 
+        AttributeName: ttl
+        Enabled: false
 
   SNSTopic:
     Type: AWS::SNS::Topic
@@ -932,7 +955,7 @@ Resources:
       - LambdaExecutionRole
     Properties:
       Code:
-        ZipFile: exports.emailVerification = function (event, context, callback){ console.log('Test'); callback(null); }
+        ZipFile: exports.emailVerification = async (event, context, callback) => { console.log('Lambda function for email'); callback(null); }
       Description: Lambda function for verification emails
       Environment:
         Variables:
