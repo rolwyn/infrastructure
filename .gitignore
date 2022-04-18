@@ -27,3 +27,6 @@ crash.log
 
 # Built Visual Studio Code Extensions
 *.vsix
+
+# ignore certificates
+certificates/
