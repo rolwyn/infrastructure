@@ -62,6 +62,9 @@ Parameters:
   LambdaBucketName:
     Type: String
     Default: "lambdabucket.rolwynquadras.me"
+  SSLCertificateArn:
+    Type: String
+    Default: "arn:aws:acm:us-east-1:605680160689:certificate/6fc01231-68ec-4ff9-adda-a780256cc653"
   # AZone1:
   #   Type: String
   #   Default: "a"
@@ -420,12 +423,15 @@ Resources:
       Family: postgres13
       Parameters:
         log_connections: 1
+        rds.force_ssl: 1
         # log_disconnections: 1
         # log_min_duration_statement: 4000
         # auto_explain.log_verbose: 1
         # rds.log_retention_period: 4320
   RDSDBInstance:
     Type: AWS::RDS::DBInstance
+    DependsOn:
+      - RDSCustomerManagedKey
     DeletionPolicy: Delete
     Properties:
       Engine: postgres
@@ -443,6 +449,8 @@ Resources:
       DBParameterGroupName: !Ref RDSParameterGroup
       VPCSecurityGroups:
         - !Ref DatabaseSecurityGroup
+      StorageEncrypted: true
+      KmsKeyId: !Ref RDSCustomerManagedKey
   RDSDBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -590,6 +598,8 @@ Resources:
             VolumeType: "gp2"
             DeleteOnTermination: "true"
             VolumeSize: "20"
+            Encrypted: true
+            KmsKeyId: !GetAtt EBSKey.Arn
         UserData:
           Fn::Base64:
             !Sub |
@@ -768,8 +778,10 @@ Resources:
         - Type: "forward"
           TargetGroupArn: !Ref AppLoadBalancerTargetGroup
       LoadBalancerArn: !Ref ApplicationLoadBalancer
-      Port: 80
-      Protocol: "HTTP"
+      Certificates:
+        - !Ref SSLCertificateArn
+      Port: 443
+      Protocol: "HTTPS"
   LoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -972,6 +984,85 @@ Resources:
         - Key: Name
           Value: !Sub '${AWS::StackName}-lambda-emailfn'
       Timeout: 15
+  
+  # ebs customer managed key
+  EBSKey:
+    Type: AWS::KMS::Key
+    Properties: 
+      Description: Customer managed EBS Key
+      Enabled: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: ebskey
+        Statement:
+          # for iam user permission 
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          # service-linked role
+          - Effect: Allow
+            Principal:
+              AWS:
+              - !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: '*'
+          # For persistent resources allow access
+          - Effect: Allow
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling
+            Action:
+              - kms:CreateGrant
+            Resource: '*'
+            Condition:
+              Bool:
+                kms:GrantIsForAWSResource: true
+      PendingWindowInDays: 7
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-ebs-key'
+
+  # alias for ebs key
+  EBSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/ebskey
+      TargetKeyId: !Ref EBSKey
+
+  # rds customer managed key
+  RDSCustomerManagedKey:
+    Type: AWS::KMS::Key
+    Properties: 
+      Description: Customer managed RDS Key
+      Enabled: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: rdskey
+        Statement:
+          # for iam user permission 
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+      PendingWindowInDays: 7
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-rds-key'
+
+  # alias for rds key
+  RDSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/rdskey
+      TargetKeyId: !Ref RDSCustomerManagedKey
 Outputs:
   VpcId:
     Description: VPC ID
